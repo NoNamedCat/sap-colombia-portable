@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manual y Tutorial Integral: ERP SAP Colombia (DIAN UBL 2.1)</title>
+  <style>
+    :root {
+      --primary: #005691;
+      --primary-dark: #003e69;
+      --secondary: #3182ce;
+      --accent: #2b6cb0;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1a202c;
+      --text-muted: #718096;
+      --border: #e2e8f0;
+      --border-dark: #cbd5e0;
+      --success: #38a169;
+      --warning: #dd6b20;
+      --danger: #e53e3e;
+      --sidebar-w: 290px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      display: flex;
+    }
+
+    /* Sidebar Navigation */
+    #sidebar {
+      width: var(--sidebar-w);
+      height: 100vh;
+      background: #1a202c;
+      color: #edf2f7;
+      position: fixed;
+      top: 0;
+      left: 0;
+      overflow-y: auto;
+      border-right: 1px solid #2d3748;
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+    }
+    .sidebar-brand {
+      padding: 20px 18px;
+      background: #0f172a;
+      border-bottom: 1px solid #2d3748;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .sap-badge {
+      background: #005691;
+      color: #fff;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 15px;
+      letter-spacing: 1px;
+    }
+    .brand-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.2;
+    }
+    .brand-sub {
+      font-size: 11px;
+      color: #94a3b8;
+    }
+    .sidebar-menu {
+      padding: 15px 0;
+      list-style: none;
+      flex: 1;
+    }
+    .menu-section {
+      padding: 10px 18px 4px 18px;
+      font-size: 10px;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: #64748b;
+      letter-spacing: 1px;
+    }
+    .sidebar-menu li a {
+      display: block;
+      padding: 7px 18px;
+      color: #cbd5e1;
+      text-decoration: none;
+      font-size: 13px;
+      transition: all 0.2s ease;
+      border-left: 3px solid transparent;
+    }
+    .sidebar-menu li a:hover {
+      background: #2d3748;
+      color: #fff;
+      border-left-color: #3182ce;
+    }
+
+    /* Main Content */
+    #main {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      max-width: 1200px;
+      padding: 40px 50px 80px 50px;
+    }
+
+    .hero-banner {
+      background: linear-gradient(135deg, #005691 0%, #003554 100%);
+      color: #fff;
+      padding: 35px 40px;
+      border-radius: 12px;
+      margin-bottom: 40px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    }
+    .hero-banner h1 {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 10px;
+    }
+    .hero-banner p {
+      font-size: 15px;
+      color: #e2e8f0;
+      max-width: 850px;
+      line-height: 1.5;
+    }
+    .hero-meta {
+      display: flex;
+      gap: 15px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    .pill {
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    h2 {
+      font-size: 22px;
+      color: var(--primary-dark);
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 10px;
+      margin-top: 45px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    h3 {
+      font-size: 17px;
+      color: #2d3748;
+      margin-top: 28px;
+      margin-bottom: 12px;
+    }
+    p, ul, ol {
+      margin-bottom: 16px;
+      font-size: 14.5px;
+      color: #334155;
+    }
+    ul, ol {
+      padding-left: 24px;
+    }
+    li {
+      margin-bottom: 6px;
+    }
+
+    /* Cards & Containers */
+    .module-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px;
+      margin-bottom: 35px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+      transition: box-shadow 0.2s ease;
+    }
+    .module-card:hover {
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.08);
+    }
+    .module-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      border-bottom: 1px solid #edf2f7;
+      padding-bottom: 10px;
+    }
+    .module-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .module-tag {
+      background: #ebf8ff;
+      color: #2b6cb0;
+      border: 1px solid #bee3f8;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+
+    /* Screenshot image box */
+    .screenshot-box {
+      margin: 18px 0 22px 0;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+    }
+    .screenshot-header {
+      background: #1e293b;
+      padding: 8px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #334155;
+    }
+    .screenshot-header .dots {
+      display: flex;
+      gap: 6px;
+    }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .dot-red { background: #ef4444; }
+    .dot-yellow { background: #f59e0b; }
+    .dot-green { background: #10b981; }
+
+    .screenshot-box img {
+      width: 100%;
+      height: auto;
+      display: block;
+      cursor: zoom-in;
+      transition: transform 0.2s ease;
+    }
+    .screenshot-caption {
+      padding: 8px 14px;
+      font-size: 12px;
+      color: #94a3b8;
+      background: #1e293b;
+      text-align: right;
+    }
+
+    /* Alert Boxes */
+    .alert {
+      padding: 14px 18px;
+      border-radius: 8px;
+      margin: 16px 0;
+      font-size: 13.5px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .alert-info {
+      background: #ebf8ff;
+      border-left: 4px solid #3182ce;
+      color: #2b6cb0;
+    }
+    .alert-warning {
+      background: #fffaf0;
+      border-left: 4px solid #dd6b20;
+      color: #9c4221;
+    }
+    .alert-success {
+      background: #f0fff4;
+      border-left: 4px solid #38a169;
+      color: #276749;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 18px 0 24px 0;
+      background: #fff;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    th {
+      background: #edf2f7;
+      color: #2d3748;
+      text-align: left;
+      padding: 12px 16px;
+      font-size: 12.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border-dark);
+    }
+    td {
+      padding: 12px 16px;
+      font-size: 13.5px;
+      border-bottom: 1px solid var(--border);
+      color: #334155;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:nth-child(even) { background-color: #f8fafc; }
+
+    .role-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      background: #e2e8f0;
+      color: #334155;
+    }
+    .role-admin { background: #fee2e2; color: #991b1b; }
+    .role-gerente { background: #dbeafe; color: #1e40af; }
+    .role-contador { background: #fef3c7; color: #92400e; }
+    .role-vendedor { background: #dcfce7; color: #166534; }
+    .role-tesorero { background: #f3e8ff; color: #6b21a8; }
+    .role-pos { background: #ffedd5; color: #9a3412; }
+    .role-rrhh { background: #fce7f3; color: #9d174d; }
+
+    /* Modal Image Lightbox */
+    #lightbox {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.85);
+      z-index: 9999;
+      justify-content: center;
+      align-items: center;
+      cursor: zoom-out;
+    }
+    #lightbox img {
+      max-width: 92vw;
+      max-height: 92vh;
+      border-radius: 6px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    }
+
+    @media (max-width: 900px) {
+      #sidebar { display: none; }
+      #main { margin-left: 0; padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <nav id="sidebar">
+    <div class="sidebar-brand">
+      <div class="sap-badge">SAP</div>
+      <div>
+        <div class="brand-title">ERP Colombia</div>
+        <div class="brand-sub">Manual & Tutorial 2026</div>
+      </div>
+    </div>
+    <ul class="sidebar-menu">
+      <li class="menu-section">Inicio</li>
+      <li><a href="#intro">1. Introducción & Acceso</a></li>
+      <li><a href="#scope-bar">2. Barra de Contexto (Scope Bar)</a></li>
+      
+      <li class="menu-section">Módulos Operativos</li>
+      <li><a href="#mod-facturacion">3. Facturación Electrónica</a></li>
+      <li><a href="#mod-notas-credito">4. Notas Crédito</a></li>
+      <li><a href="#mod-ciclo-comercial">5. Ciclo Comercial (Cascada)</a></li>
+      <li><a href="#mod-pos">6. Punto de Venta POS</a></li>
+      <li><a href="#mod-cartera">7. Cartera & CxC</a></li>
+      <li><a href="#mod-doc-soporte">8. Documento Soporte</a></li>
+      <li><a href="#mod-compras">9. Compras, RADIAN & CxP</a></li>
+      <li><a href="#mod-contabilidad">10. Contabilidad PUC</a></li>
+      <li><a href="#mod-impuestos">11. Impuestos DIAN (300/350)</a></li>
+      <li><a href="#mod-precios">12. Precios & Lotes Inventario</a></li>
+      <li><a href="#mod-nomina">13. Nómina Electrónica</a></li>
+      <li><a href="#mod-sistema">14. Consola Multi-Empresa</a></li>
+      <li><a href="#mod-sod">15. Matriz SoD (Antifraude)</a></li>
+
+      <li class="menu-section">Manuales por Cargo</li>
+      <li><a href="#cargo-superadmin">👑 Superadministrador</a></li>
+      <li><a href="#cargo-gerente">👔 Gerente General</a></li>
+      <li><a href="#cargo-contador">📊 Contador General</a></li>
+      <li><a href="#cargo-vendedor">💼 Vendedor Comercial</a></li>
+      <li><a href="#cargo-tesorero">💰 Tesorero / CxP</a></li>
+      <li><a href="#cargo-cajero">🛒 Cajero POS</a></li>
+      <li><a href="#cargo-rrhh">👥 Recursos Humanos</a></li>
+      <li><a href="#credenciales">🔑 Tabla de Credenciales</a></li>
+    </ul>
+  </nav>
+
+  <!-- Main Container -->
+  <main id="main">
+
+    <!-- Hero -->
+    <div class="hero-banner" id="intro">
+      <h1>Manual y Tutorial Integral de Operación</h1>
+      <p>Guía visual y operativa del ERP SAP Colombia con integración DIAN UBL 2.1. Aprende a gestionar cada módulo, conocer el flujo de trabajo en cascada y operar el sistema de acuerdo a tu cargo o rol asignado.</p>
+      <div class="hero-meta">
+        <span class="pill">🇨🇴 Normativa DIAN UBL 2.1</span>
+        <span class="pill">⚡ Certificación RADIAN</span>
+        <span class="pill">🛡️ Segregación SoD ISO 27001</span>
+        <span class="pill">🏢 Multi-Empresa / Multi-Tenant</span>
+      </div>
+    </div>
+
+    <!-- 1. Acceso y Login -->
+    <section class="module-card">
+      <div class="module-header">
+        <h2 style="margin:0; border:none; padding:0;">1. Autenticación y Pantalla de Acceso</h2>
+        <span class="module-tag">Seguridad PBKDF2</span>
+      </div>
+      <p>El sistema protege el acceso mediante credenciales encriptadas con <strong>PBKDF2-HMAC-SHA256</strong>, token JWT de sesión con expiración a los 60 minutos e invalidación automática ante cambio de contraseña.</p>
+
+      <div class="screenshot-box">
+        <div class="screenshot-header">
+          <div class="dots"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+          <span>Pantalla de Inicio de Sesión — http://localhost:8000</span>
+        </div>
+        <img src="screenshots/01_login_screen.png" alt="Login Screen" onclick="zoomImage(this)">
+        <div class="screenshot-caption">Figura 1: Pantalla de inicio de sesión con branding institucional SAP Colombia.</div>
+      </div>
+
+      <div class="alert alert-info">
+        <span>ℹ️</span>
+        <div><strong>Control de Primer Ingreso:</strong> Todo usuario recién creado por el administrador cuenta con la bandera de primer ingreso activa. Al loguearse por primera vez, el sistema exige inmediatamente el cambio de contraseña antes de habilitar los módulos de trabajo.</div>
+      </div>
+    </section>
+
+    <!-- 2. Scope Bar -->
+    <section class="module-card" id="scope-bar">
+      <div class="module-header">
+        <h2 style="margin:0; border:none; padding:0;">2. Barra de Contexto Superior (Scope Bar)</h2>
+        <span class="module-tag">Gobernanza Visual</span>
+      </div>
+      <p>La barra superior acompaña al usuario en todas las vistas y proporciona contexto en tiempo real:</p>
+
+      <div class="screenshot-box">
+        <div class="screenshot-header">
+          <div class="dots"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+          <span>Scope Bar del Encabezado</span>
+        </div>
+        <img src="screenshots/02_header_scope_bar.png" alt="Header Scope Bar" onclick="zoomImage(this)">
+        <div class="screenshot-caption">Figura 2: Selector de empresa, badge fiscal de periodo, estado DIAN y perfil de usuario.</div>
+      </div>
+
+      <ol>
+        <li><strong>Selector de Empresa:</strong> Permite a los usuarios asignados a múltiples razones sociales alternar de contexto sin cerrar sesión.</li>
+        <li><strong>Badge de Periodo Fiscal:</strong> Informa con código verde (<code>📅 2026-10 Abierto</code>) o rojo (<code>🔒 2026-10 Cerrado</code>) el estado contable del mes. El sistema bloquea automáticamente cualquier intento de causar transacciones en meses ya cerrados.</li>
+        <li><strong>Badge de Conexión DIAN:</strong> Notifica si el sistema está operando en ambiente de Habilitación, Pruebas o Producción.</li>
+        <li><strong>Botón Consola de Sistema:</strong> Visible exclusivamente para administradores globales para gestionar empresas y perfiles de rol.</li>
+      </ol>
+    </section>
+
+    <!-- 3. Facturación Electrónica -->
+    <section class="module-card" id="mod-facturacion">
+      <div class="module-header">
+        <h2 style="margin:0; border:none; padding:0;">3. Facturación Electrónica de Venta (UBL 2.1)</h2>
+        <span class="module-tag">Núcleo DIAN</span>
+      </div>
+      <p>Permite liquidar y transmitir facturas electrónicas con firma digital XAdES-BES, generación determinística de <strong>CUFE</strong> (Código Único de Factura Electrónica), código QR y representación gráfica en PDF.</p>
+
+      <div class="screenshot-box">
+        <div class="screenshot-header">
+          <div class="dots"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+          <span>Módulo de Facturación Electrónica</span>
+        </div>
+        <img src="screenshots/04_facturacion.png" alt="Facturación Electrónica" onclick="zoomImage(this)">
+        <div class="screenshot-caption">Figura 3: Emisión de factura con liquidación tributaria colombiana automática en tiempo real.</div>
+      </div>
+
+      <h3>Instrucciones Paso a Paso:</h3>
+      <ol>
+        <li>Verifica los datos de la resolución DIAN autorizada (Prefijo, Rango desde/hasta, Clave Técnica).</li>
+        <li>Selecciona el cliente adquirente en el menú desplegable.</li>
+        <li>Agrega los ítems o servicios seleccionando el producto, cantidad y precio unitario.</li>
+        <li>Observa el panel derecho de <strong>Liquidación Tributaria</strong>: calcula instantáneamente Subtotal, IVA (19% o 5%), Retefuente, ReteIVA y ReteICA.</li>
+        <li>Presiona el botón verde <strong>⚡ Emitir Factura Electrónica a DIAN</strong>.</li>
+        <li>El sistema transmite el XML al Web Service de la DIAN y te entregará el CUFE generado con los botones de descarga de XML UBL y PDF.</li>
+      </ol>
+    </section>
+
+    <!-- 4. Notas Crédito -->
+    <section class="module-card" id="mod-notas-credito">
+      <div class="module-header">
+        <h2 style="margin:0; border:none; padding:0;">4. Notas Crédito y Anulaciones</h2>
+        <span class="module-tag">Tipo Operación 91</span>
+      </div>
+      <p>Las Notas Crédito electrónicas permiten modificar o anular facturas previamente aceptadas por la DIAN, asociando obligatoriamente la Factura Padre y el motivo oficial DIAN.</p>
+
+      <div class="screenshot-box">
+        <div class="screenshot-header">
+          <div class="dots"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+          <span>Emisión de Notas Crédito</span>
+        </div>
+        <img src="screenshots/05_notas_credito.png" alt="Notas Crédito" onclick="zoomImage(this)">
+        <div class="screenshot-caption">Figura 4: Interfaz de anulación o ajuste de facturas con CUDE electrónico.</div>
+      </div>
+
+      <div class="alert alert-warning">
+        <span>⚠️</span>
+        <div><strong>Regla de Segregación (SoD-002):</strong> La emisión de Notas Crédito por anulación total debe estar separada de los vendedores comunes para evitar anulaciones no autorizadas de ingresos. Se recomienda restringir este permiso a Contabilidad o Gerencia.</div>
+      </div>
+    </section>
+
+    <!-- 5. Ciclo Comercial Cascada -->
+    <section class="module-card" id="mod-ciclo-comercial">
+      <div class="module-header">
+        <h2 style="margin:0; border:none; padding:0;">5. Ciclo Comercial Completo en Cascada</h2>
+        <span class="module-tag">Cotización ➔ Pedido ➔ Remisión ➔ Factura</span>
+      </div>
+      <p>Automatiza el flujo de ventas corporativo permitiendo avanzar el documento en un solo clic:</p>
+
+      <div class="screenshot-box">
+        <div class="screenshot-header">
+          <div class="dots"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+          <span>Módulo Ciclo Comercial</span>
+        </div>
+        <img src="screenshots/07_ciclo_comercial.png" alt="Ciclo Comercial" onclick="zoomImage(this)">
+        <div class="screenshot-caption">Figura 5: Creación de cotizaciones con control de descuentos y conversión en cascada.</div>
+      </div>
+
+      <h3>Flujo de Operación:</h3>
+      <ul>
+        <li><strong>1. Crear Cotización:</strong> El vendedor diligencia los ítems y define el descuento comercial. Si el descuento supera el 15%, la cotización se bloquea en estado <code>REQUIERE_APROBACION</code>.</li>
+        <li><strong>2. Visto Bueno Gerencial:</strong> Un usuario con rol de administración o supervisión revisa la cotización y presiona <strong>✅ Aprobar Dto</strong>.</li>
+        <li><strong>3. Convertir a Pedido:</strong> Se presiona <strong>Aprobar y Pedido ➔</strong> generando el documento de pedido de venta.</li>
+        <li><strong>4. Remisión de Almacén:</strong> Genera la orden de entrega física para despacho en bodega.</li>
+        <li><strong>5. Facturación 1-Clic:</strong> Al presionar <strong>Facturar 1-Clic ⚡</strong>, el pedido se convierte directamente en factura electrónica DIAN sin recapturar información.</li>
+      </ul>
+    </section>
+
+    <!-- 6. Punto de Venta POS -->
+    <section class="module-card" id="mod-pos">
+      <div class="module-header">
+        <h2 style="margin:0; border:none; padding:0;">6. Punto de Venta POS Electrónico</h2>
+        <span class="module-tag">Resolución DIAN 000165/2023</span>
+      </div>
+      <p>Diseñado para venta rápida de mostrador en cajas físicas con control de turnos, arqueos y comprobante fiscal de turno.</p>
+
+      <div class="screenshot-box">
+        <div class="screenshot-header">
+          <div class="dots"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+          <span>Control de Caja y Turnos POS</span>
+        </div>
+        <img src="screenshots/08_pos_system.png" alt="POS System" onclick="zoomImage(this)">
+        <div class="screenshot-caption">Figura 6: Apertura y cierre de turnos de caja con base inicial y arqueo de efectivo.</div>
+      </div>
+    </section>
+
+    <!-- 7. Cartera y CxC -->
+    <section class="module-card" id="mod-cartera">
+      <div class="module-header">
+        <h2 style="margin:0; border:none; padding:0;">7. Cartera y Cuentas por Cobrar (CxC)</h2>
+        <span class="module-tag">Edades de Cartera</span>
+      </div>
+      <p>Visualiza en tiempo real los saldos pendientes de clientes clasificados por vencimiento:</p>
+
+      <div class="screenshot-box">
+        <div class="screenshot-header">
+          <div class="dots"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+          <span>Semáforo de Edades de Cartera</span>
+        </div>
+        <img src="screenshots/06_cartera.png" alt="Cartera CxC" onclick="zoomImage(this)">
+        <div class="screenshot-caption">Figura 7: Cartera corriente, vencida a 30, 60, 90 y más de 90 días, con recaudos y recibos de caja.</div>
+      </div>
+    </section>
+
+    <!-- 8. Documento Soporte -->
+    <section class="module-card" id="mod-doc-soporte">
+      <div class="module-header">
+        <h2 style="margin:0; border:none; padding:0;">8. Documento Soporte Electrónico</h2>
+        <span class="module-tag">Código CUDS</span>
+      </div>
+      <p>Permite soportar fiscalmente costos y deducciones por adquisiciones realizadas a sujetos no obligados a expedir factura de venta.</p>
+
+      <div class="screenshot-box">
+        <div class="screenshot-header">
+          <div class="dots"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+          <span>Emisión de Documento Soporte</span>
+        </div>
+        <img src="screenshots/09_documento_soporte.png" alt="Documento Soporte" onclick="zoomImage(this)">
+        <div class="screenshot-caption">Figura 8: Emisión de Documento Soporte con retenciones y generación de código CUDS.</div>
+      </div>
+    </section>
+
+    <!-- 9. Buzón Compras, RADIAN y CxP -->
+    <section class="module-card" id="mod-compras">
+      <div class="module-header">
+        <h2 style="margin:0; border:none; padding:0;">9. Buzón de Compras, RADIAN y Cuentas por Pagar</h2>
+        <span class="module-tag">Título Valor & Trazabilidad</span>
+      </div>
+      <p>Automatiza el procesamiento de facturas recibidas de proveedores mediante la carga de archivos XML (AttachedDocument) o ZIP oficiales.</p>
+
+      <div class="screenshot-box">
+        <div class="screenshot-header">
+          <div class="dots"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+          <span>Buzón de Compras y Eventos RADIAN</span>
+        </div>
+        <img src="screenshots/10_compras_cxp.png" alt="Buzón Compras y CxP" onclick="zoomImage(this)">
+        <div class="screenshot-caption">Figura 9: Carga automática de XML de proveedores, eventos RADIAN 030, 032, 033 y control de CxP.</div>
+      </div>
+    </section>
+
+    <!-- 10. Contabilidad PUC -->
+    <section class="module-card" id="mod-contabilidad">
+      <div class="module-header">
+        <h2 style="margin:0; border:none; padding:0;">10. Contabilidad General y Balance de Comprobación</h2>
+        <span class="module-tag">Partida Doble PUC</span>
+      </div>
+      <p>Garantiza la consistencia contable del ERP. Cada venta, compra, nota o comprobante de nómina genera automáticamente su asiento en partida doble.</p>
+
+      <div class="screenshot-box">
+        <div class="screenshot-header">
+          <div class="dots"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+          <span>Balance de Prueba en Tiempo Real</span>
+        </div>
+        <img src="screenshots/11_contabilidad_puc.png" alt="Contabilidad PUC" onclick="zoomImage(this)">
+        <div class="screenshot-caption">Figura 10: Validación automática de Débitos = Créditos sobre el catálogo de cuentas PUC oficial.</div>
+      </div>
+    </section>
+
+    <!-- 11. Impuestos DIAN -->
+    <section class="module-card" id="mod-impuestos">
+      <div class="module-header">
+        <h2 style="margin:0; border:none; padding:0;">11. Formularios Tributarios DIAN (300 y 350)</h2>
+        <span class="module-tag">Borradores Fiscales</span>
+      </div>
+      <p>Genera en un clic los borradores idénticos a los formularios oficiales de la DIAN listos para diligenciar en el portal Muisca.</p>
+
+      <div class="screenshot-box">
+        <div class="screenshot-header">
+          <div class="dots"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+          <span>Generador de Formularios 300 y 350</span>
+        </div>
+        <img src="screenshots/12_impuestos_dian.png" alt="Impuestos DIAN" onclick="zoomImage(this)">
+        <div class="screenshot-caption">Figura 11: Formulario 300 (Declaración de IVA) y Formulario 350 (Retención en la Fuente).</div>
+      </div>
+    </section>
+
+    <!-- 12. Precios e Inventario -->
+    <section class="module-card" id="mod-precios">
+      <div class="module-header">
+        <h2 style="margin:0; border:none; padding:0;">12. Listas de Precios y Trazabilidad de Lotes</h2>
+        <span class="module-tag">Kardex Avanzado</span>
+      </div>
+      <p>Permite administrar múltiples listas de precios (Mayoristas, Distribuidores) y llevar el control estricto de lotes y fechas de vencimiento en inventario.</p>
+
+      <div class="screenshot-box">
+        <div class="screenshot-header">
+          <div class="dots"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+          <span>Módulo de Listas de Precios</span>
+        </div>
+        <img src="screenshots/13_listas_precios.png" alt="Listas de Precios" onclick="zoomImage(this)">
+        <div class="screenshot-caption">Figura 12: Configuración de listas y precios especiales diferenciados por cliente o canal.</div>
+      </div>
+    </section>
+
+    <!-- 13. Nómina Electrónica -->
+    <section class="module-card" id="mod-nomina">
+      <div class="module-header">
+        <h2 style="margin:0; border:none; padding:0;">13. Nómina Electrónica y Novedades</h2>
+        <span class="module-tag">Resolución DIAN Nómina</span>
+      </div>
+      <p>Gestiona el personal, liquida novedades (horas extra, recargos, festivos), calcula deducciones legales y transmite los comprobantes electrónicos de nómina.</p>
+
+      <div class="screenshot-box">
+        <div class="screenshot-header">
+          <div class="dots"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+          <span>Panel de Gestión de Nómina</span>
+        </div>
+        <img src="screenshots/14_nomina_electronica.png" alt="Nómina Electrónica" onclick="zoomImage(this)">
+        <div class="screenshot-caption">Figura 13: Registro de empleados, liquidación de neto estimado y cálculo de costo total empleador.</div>
+      </div>
+    </section>
+
+    <!-- 14. Consola Multi-Empresa -->
+    <section class="module-card" id="mod-sistema">
+      <div class="module-header">
+        <h2 style="margin:0; border:none; padding:0;">14. Consola de Sistema y Multi-Empresa</h2>
+        <span class="module-tag">Tenant Manager</span>
+      </div>
+      <p>Espacio exclusivo para administradores de plataforma donde se administran empresas subsidiarias, certificados digitales, usuarios y perfiles de rol.</p>
+
+      <div class="screenshot-box">
+        <div class="screenshot-header">
+          <div class="dots"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+          <span>Consola de Administración de Sistema</span>
+        </div>
+        <img src="screenshots/15_consola_sistema.png" alt="Consola Sistema" onclick="zoomImage(this)">
+        <div class="screenshot-caption">Figura 14: Panel centralizado de empresas, usuarios y asignación de roles.</div>
+      </div>
+    </section>
+
+    <!-- 15. Matriz SoD -->
+    <section class="module-card" id="mod-sod">
+      <div class="module-header">
+        <h2 style="margin:0; border:none; padding:0;">15. Motor de Segregación de Obligaciones (SoD)</h2>
+        <span class="module-tag">Control Interno Antifraude</span>
+      </div>
+      <p>El ERP previene activamente conflictos de interés y fraudes operativos mediante un motor de reglas que audita en tiempo real los permisos asignados a cada rol:</p>
+
+      <div class="screenshot-box">
+        <div class="screenshot-header">
+          <div class="dots"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+          <span>Modal de Permisos con Detección SoD en Vivo</span>
+        </div>
+        <img src="screenshots/16_sod_permisos_modal.png" alt="Modal SoD" onclick="zoomImage(this)">
+        <div class="screenshot-caption">Figura 15: Alerta preventiva de combinaciones tóxicas (ej. Compras vs Desembolsos) con control compensatorio sugerido.</div>
+      </div>
+    </section>
+
+    <!-- Manuales por Cargo -->
+    <h2 id="cargo-superadmin">Manuales Especializados por Cargo</h2>
+
+    <!-- Superadmin -->
+    <div class="module-card">
+      <div class="module-header">
+        <h3 style="margin:0;" class="module-title">👑 Superadministrador de Sistema (Global)</h3>
+        <span class="role-badge role-admin">Acceso Plataforma</span>
+      </div>
+      <p><strong>Propósito:</strong> Gestionar la infraestructura, dar de alta nuevas empresas y velar por la seguridad de la plataforma.</p>
+      <ul>
+        <li><strong>Creación de Empresas:</strong> Ingresa a <em>Consola Sistema ➔ Empresas</em> y registra NIT, razón social y datos tributarios.</li>
+        <li><strong>Firma Digital:</strong> Configura el certificado <code>.p12</code> y contraseña de cada empresa para la firma electrónica.</li>
+        <li><strong>Gobernanza SoD:</strong> Supervisa que ningún rol operativo acumule permisos incompatibles.</li>
+      </ul>
+    </div>
+
+    <!-- Gerente General -->
+    <div class="module-card" id="cargo-gerente">
+      <div class="module-header">
+        <h3 style="margin:0;" class="module-title">👔 Gerente General / Administrador de Empresa</h3>
+        <span class="role-badge role-gerente">Supervisión Total</span>
+      </div>
+      <p><strong>Propósito:</strong> Monitoreo de indicadores, autorizaciones comerciales y control del negocio.</p>
+      <ul>
+        <li><strong>Monitoreo de KPIs:</strong> Consulta el Dashboard para conocer las ventas del mes, cartera pendiente y margen de utilidad.</li>
+        <li><strong>Aprobación de Descuentos:</strong> Revisa cotizaciones que superen el límite comercial del 15% y autoriza su conversión a pedido.</li>
+        <li><strong>Auditoría de Cierres:</strong> Aprueba los cierres contables mensuales formalizados por el contador.</li>
+      </ul>
+    </div>
+
+    <!-- Contador -->
+    <div class="module-card" id="cargo-contador">
+      <div class="module-header">
+        <h3 style="margin:0;" class="module-title">📊 Contador General / Revisor Fiscal</h3>
+        <span class="role-badge role-contador">Fiscal & Contable</span>
+      </div>
+      <p><strong>Propósito:</strong> Garantizar la veracidad de los estados financieros y el cumplimiento tributario ante la DIAN.</p>
+      <ul>
+        <li><strong>Balance de Comprobación:</strong> Audita periódicamente el balance verificando que Débitos = Créditos.</li>
+        <li><strong>Declaraciones Tributarias:</strong> Genera los borradores de los Formularios 300 (IVA) y 350 (Retención en la Fuente).</li>
+        <li><strong>Cierre de Periodo Fiscal:</strong> Ejecuta el cierre mensual formalizando la justificación contable para impedir alteraciones retroactivas.</li>
+      </ul>
+    </div>
+
+    <!-- Vendedor -->
+    <div class="module-card" id="cargo-vendedor">
+      <div class="module-header">
+        <h3 style="margin:0;" class="module-title">💼 Vendedor / Ejecutivo Comercial</h3>
+        <span class="role-badge role-vendedor">Ventas & Clientes</span>
+      </div>
+      <p><strong>Propósito:</strong> Realizar cotizaciones, gestionar pedidos y atender clientes bajo estricto aislamiento de datos.</p>
+
+      <div class="screenshot-box">
+        <div class="screenshot-header">
+          <div class="dots"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+          <span>Vista Acotada del Vendedor</span>
+        </div>
+        <img src="screenshots/17_vista_vendedor.png" alt="Vista Vendedor" onclick="zoomImage(this)">
+        <div class="screenshot-caption">Figura 16: Interfaz optimizada para el vendedor, con privacidad de documentos y pestañas administrativas ocultas.</div>
+      </div>
+      <ul>
+        <li><strong>Aislamiento de Información:</strong> Cada vendedor solo tiene visibilidad de sus propias cotizaciones y pedidos creados.</li>
+        <li><strong>Límite de Descuento:</strong> Puede conceder descuentos hasta el 15%. Descuentos superiores requerirán aprobación previa.</li>
+      </ul>
+    </div>
+
+    <!-- Tesorero -->
+    <div class="module-card" id="cargo-tesorero">
+      <div class="module-header">
+        <h3 style="margin:0;" class="module-title">💰 Tesorero / Cuentas por Pagar</h3>
+        <span class="role-badge role-tesorero">Tesorería & CxP</span>
+      </div>
+      <p><strong>Propósito:</strong> Tramitar compras, registrar eventos RADIAN y programar desembolsos a proveedores.</p>
+
+      <div class="screenshot-box">
+        <div class="screenshot-header">
+          <div class="dots"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+          <span>Vista Especializada de Tesorería</span>
+        </div>
+        <img src="screenshots/18_vista_tesorero.png" alt="Vista Tesorero" onclick="zoomImage(this)">
+        <div class="screenshot-caption">Figura 17: Panel de Cuentas por Pagar y Buzón de Facturas de Proveedores.</div>
+      </div>
+      <ul>
+        <li><strong>Carga de Facturas:</strong> Sube el archivo XML o ZIP recibido del proveedor para causar la deuda en contabilidad.</li>
+        <li><strong>RADIAN:</strong> Emite los eventos 030 (Acuse) y 032 (Recepción) para habilitar el título valor.</li>
+        <li><strong>Egresos:</strong> Genera los comprobantes de egreso bancarios una vez autorizados los pagos.</li>
+      </ul>
+    </div>
+
+    <!-- Cajero POS -->
+    <div class="module-card" id="cargo-cajero">
+      <div class="module-header">
+        <h3 style="margin:0;" class="module-title">🛒 Cajero Punto de Venta POS</h3>
+        <span class="role-badge role-pos">Turnos & Mostrador</span>
+      </div>
+      <p><strong>Propósito:</strong> Atención rápida en caja física, cobro y cuadre de turnos.</p>
+
+      <div class="screenshot-box">
+        <div class="screenshot-header">
+          <div class="dots"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+          <span>Vista de Caja POS</span>
+        </div>
+        <img src="screenshots/19_vista_cajero_pos.png" alt="Vista Cajero POS" onclick="zoomImage(this)">
+        <div class="screenshot-caption">Figura 18: Interfaz limpia y ágil de mostrador para cajeros.</div>
+      </div>
+      <ul>
+        <li><strong>Apertura de Turno:</strong> Digita la base en efectivo inicial y presiona <em>Abrir Turno</em>.</li>
+        <li><strong>Ventas:</strong> Registra productos por escaneo de código de barras y emite tickets electrónicos.</li>
+        <li><strong>Cierre de Turno:</strong> Realiza el conteo físico de dinero para generar el comprobante de cuadre de caja.</li>
+      </ul>
+    </div>
+
+    <!-- RRHH -->
+    <div class="module-card" id="cargo-rrhh">
+      <div class="module-header">
+        <h3 style="margin:0;" class="module-title">👥 Gestor de Talento Humano / Nómina</h3>
+        <span class="role-badge role-rrhh">Gestión Humana</span>
+      </div>
+      <p><strong>Propósito:</strong> Manejo de empleados, liquidación mensual y nómina electrónica DIAN.</p>
+
+      <div class="screenshot-box">
+        <div class="screenshot-header">
+          <div class="dots"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+          <span>Vista de Recursos Humanos</span>
+        </div>
+        <img src="screenshots/20_vista_rrhh.png" alt="Vista RRHH" onclick="zoomImage(this)">
+        <div class="screenshot-caption">Figura 19: Panel de nómina con acceso a empleados, liquidación y emisión DIAN.</div>
+      </div>
+    </div>
+
+    <!-- Tabla de Credenciales -->
+    <section class="module-card" id="credenciales">
+      <div class="module-header">
+        <h2 style="margin:0; border:none; padding:0;">🔑 Tabla de Credenciales para Pruebas</h2>
+        <span class="module-tag">Entorno de Pruebas</span>
+      </div>
+      <p>Puedes ingresar al sistema en <a href="http://localhost:8000" target="_blank" style="color:var(--secondary); font-weight:700;">http://localhost:8000</a> con cualquiera de las siguientes cuentas para comprobar cómo cambia la interfaz, los permisos y las restricciones según el cargo:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Cargo / Rol</th>
+            <th>Correo Electrónico</th>
+            <th>Contraseña</th>
+            <th>Alcance Operativo</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="role-badge role-admin">SUPERADMIN</span></td>
+            <td><code>admin@saluki.com</code></td>
+            <td><code>admin123</code></td>
+            <td>Control total de plataforma, tenants, empresas y SoD</td>
+          </tr>
+          <tr>
+            <td><span class="role-badge role-gerente">ADMIN_EMPRESA</span></td>
+            <td><code>gerente@empresa.com</code></td>
+            <td><code>Gerente123!</code></td>
+            <td>Dashboard, aprobaciones de descuento, supervisión empresa</td>
+          </tr>
+          <tr>
+            <td><span class="role-badge role-contador">CONTADOR</span></td>
+            <td><code>contador@empresa.com</code></td>
+            <td><code>Contador123!</code></td>
+            <td>PUC, balance, libros oficiales, impuestos 300/350 y cierre</td>
+          </tr>
+          <tr>
+            <td><span class="role-badge role-vendedor">VENDEDOR</span></td>
+            <td><code>vendedor@empresa.com</code></td>
+            <td><code>Vendedor123!</code></td>
+            <td>Ciclo comercial, cotizaciones propias y pedidos</td>
+          </tr>
+          <tr>
+            <td><span class="role-badge role-tesorero">TESORERO</span></td>
+            <td><code>tesorero@empresa.com</code></td>
+            <td><code>Tesorero123!</code></td>
+            <td>Buzón XML compras, eventos RADIAN, Cuentas por Pagar</td>
+          </tr>
+          <tr>
+            <td><span class="role-badge role-pos">CAJERO_POS</span></td>
+            <td><code>cajero@empresa.com</code></td>
+            <td><code>Cajero123!</code></td>
+            <td>Apertura de turno, tickets electrónicos y arqueo de caja</td>
+          </tr>
+          <tr>
+            <td><span class="role-badge role-rrhh">RECURSOS_HUMANOS</span></td>
+            <td><code>rrhh@empresa.com</code></td>
+            <td><code>Nomina123!</code></td>
+            <td>Registro de personal, liquidación y nómina electrónica</td>
+          </tr>
+          <tr>
+            <td><span class="role-badge">ALMACENISTA</span></td>
+            <td><code>almacen@empresa.com</code></td>
+            <td><code>Almacen123!</code></td>
+            <td>Kardex, control de existencias mínimas y lotes</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+  </main>
+
+  <!-- Lightbox Modal -->
+  <div id="lightbox" onclick="closeLightbox()">
+    <img id="lightbox-img" src="" alt="Zoom">
+  </div>
+
+  <script>
+    function zoomImage(img) {
+      const lb = document.getElementById('lightbox');
+      const lbImg = document.getElementById('lightbox-img');
+      lbImg.src = img.src;
+      lb.style.display = 'flex';
+    }
+    function closeLightbox() {
+      document.getElementById('lightbox').style.display = 'none';
+    }
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeLightbox();
+    });
+  </script>
+</body>
+</html>
