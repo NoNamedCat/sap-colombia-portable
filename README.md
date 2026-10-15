@@ -30,6 +30,13 @@ SAP_Colombia_Portable/
 
 ---
 
+## 📖 Tutorial y Manual en Línea
+
+Puedes consultar el manual integral e interactivo con capturas de pantalla reales directamente en:
+👉 **[https://nonamedcat.github.io/sap-colombia-portable/](https://nonamedcat.github.io/sap-colombia-portable/)**
+
+---
+
 ## 🚀 Cómo Iniciar el Programa
 
 ### En Linux
