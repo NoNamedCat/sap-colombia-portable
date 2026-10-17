@@ -1,0 +1,8 @@
+.venv/
+.pgdata/
+__pycache__/
+*.pyc
+.pytest_cache/
+sap_colombia.db
+*.db
+docs/

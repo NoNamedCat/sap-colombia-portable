@@ -1,0 +1,8 @@
+psycopg2-binary>=2.9
+pyjwt>=2.7
+cryptography>=41.0
+lxml>=5.0
+qrcode>=7.0
+reportlab>=4.0
+requests>=2.31
+pytest>=8.0
