@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # LANZADOR PORTABLE LINUX - ERP CORPORATIVO COLOMBIA
-# 100% Autónomo: Auto-descarga PostgreSQL 17 + Python 3.12 si no están presentes,
-# inicializa la base de datos y arranca el servidor Web/API.
+# Soporta tanto Base de Datos Portable Embebida (Data/db) como PostgreSQL Externo
+# configurado en Data/config.json.
 # ==============================================================================
 
 set -e
@@ -18,93 +18,112 @@ PG_LIB="${APP_DIR}/engine/linux/lib"
 mkdir -p "${LOGS_DIR}"
 chmod 0700 "${DB_DIR}" 2>/dev/null || true
 
-# 0. Auto-portabilizar si faltan los binarios embebidos de PostgreSQL o Python
-if [ ! -x "${PG_BIN}/postgres" ] || [ ! -x "${APP_DIR}/runtime/linux/bin/python3" ]; then
-    echo "📦 Detectando primer arranque sin binarios portables en App/..."
-    echo "⬇️  Descargando y configurando PostgreSQL 17.2 + Python 3.12 Portable automáticamente..."
+# 0. Auto-portabilizar Python Linux si no existe
+if [ ! -x "${APP_DIR}/runtime/linux/bin/python3" ]; then
+    echo "📦 Descargando y configurando Python 3.12 Portable automáticamente..."
     python3 "${APP_DIR}/scripts/portabilizar_entorno.py" --target linux
 fi
-
-export LD_LIBRARY_PATH="${PG_LIB}:${LD_LIBRARY_PATH:-}"
-export PGSYSCONFDIR="${DATA_DIR}"
-export PGDATA="${DB_DIR}"
 
 PYTHON_BIN="${APP_DIR}/runtime/linux/bin/python3"
 if [ ! -x "${PYTHON_BIN}" ]; then
     PYTHON_BIN="python3"
 fi
 
-# Leer configuración desde Data/config.json (con valores por defecto seguros)
+# Leer configuración desde Data/config.json (soporta embedded_postgresql y external_postgresql)
 CONFIG_FILE="${DATA_DIR}/config.json"
-if [ -f "${CONFIG_FILE}" ]; then
-    eval "$("${PYTHON_BIN}" - "${CONFIG_FILE}" <<'PYEOF'
-import json, sys
-try:
-    with open(sys.argv[1]) as f:
-        c = json.load(f)
-    srv = c.get("server", {})
-    db = c.get("database", {})
-    print(f"HTTP_HOST='{srv.get('host', '127.0.0.1')}'")
-    print(f"HTTP_PORT='{int(srv.get('http_port', 8000))}'")
-    print(f"DB_PORT='{int(db.get('port', 54329))}'")
-    print(f"DB_USER='{db.get('user', 'sap')}'")
-    print(f"DB_NAME='{db.get('dbname', 'sap_colombia')}'")
-except Exception:
-    pass
+eval "$("${PYTHON_BIN}" - "${CONFIG_FILE}" <<'PYEOF'
+import json, os, sys
+from urllib.parse import quote_plus
+cfg = {}
+if len(sys.argv) > 1 and os.path.isfile(sys.argv[1]):
+    try:
+        with open(sys.argv[1], "r", encoding="utf-8") as f:
+            cfg = json.load(f)
+    except Exception:
+        pass
+srv = cfg.get("server", {})
+db = cfg.get("database", {})
+engine = db.get("engine", "embedded_postgresql")
+host = db.get("host", "127.0.0.1") if engine != "embedded_postgresql" else "127.0.0.1"
+port = int(db.get("port", 54329 if engine == "embedded_postgresql" else 5432))
+user = db.get("user", "sap")
+password = db.get("password", "") if engine != "embedded_postgresql" else ""
+dbname = db.get("dbname", "sap_colombia")
+sslmode = db.get("sslmode", "")
+custom_dsn = (db.get("dsn") or "").strip()
+if custom_dsn:
+    dsn = custom_dsn
+else:
+    auth = quote_plus(str(user))
+    if password:
+        auth += f":{quote_plus(str(password))}"
+    dsn = f"postgresql://{auth}@{host}:{port}/{dbname}"
+    if sslmode:
+        dsn += f"?sslmode={quote_plus(str(sslmode))}"
+print(f"HTTP_HOST='{srv.get('host', '127.0.0.1')}'")
+print(f"HTTP_PORT='{int(srv.get('http_port', 8000))}'")
+print(f"DB_ENGINE='{engine}'")
+print(f"DB_HOST='{host}'")
+print(f"DB_PORT='{port}'")
+print(f"DB_USER='{user}'")
+print(f"DB_NAME='{dbname}'")
+print(f"COMPUTED_DSN='{dsn}'")
 PYEOF
 )"
-fi
 
-HTTP_HOST="${HTTP_HOST:-127.0.0.1}"
-HTTP_PORT="${HTTP_PORT:-8000}"
-DB_PORT="${DB_PORT:-54329}"
-DB_USER="${DB_USER:-sap}"
-DB_NAME="${DB_NAME:-sap_colombia}"
+export LD_LIBRARY_PATH="${PG_LIB}:${LD_LIBRARY_PATH:-}"
+export PGSYSCONFDIR="${DATA_DIR}"
+export PGDATA="${DB_DIR}"
 
 echo "=================================================================="
 echo " 🚀 ERP CORPORATIVO COLOMBIA - SISTEMA PORTABLE AUTÓNOMO (LINUX)"
 echo "=================================================================="
 echo "📂 Directorio Base : ${BASE_DIR}"
-echo "💾 Datos & BD      : ${DATA_DIR}"
-echo "⚙️  Motor Embebido  : PostgreSQL 17 (Puerto ${DB_PORT}, BD ${DB_NAME})"
+if [ "${DB_ENGINE}" = "embedded_postgresql" ]; then
+    echo "🗄️  Base de Datos   : PORTABLE EMBEBIDA en Data/db (Puerto ${DB_PORT})"
+else
+    echo "🗄️  Base de Datos   : POSTGRESQL EXTERNO (${DB_HOST}:${DB_PORT}/${DB_NAME})"
+fi
 echo "🐍 Python Runtime  : ${PYTHON_BIN}"
 echo "🌐 Servidor Web    : http://${HTTP_HOST}:${HTTP_PORT}"
+echo "🔧 Configurar BD   : Ejecuta ./Portabilizar_Todo.sh para cambiar entre BD Portable o Externa"
 echo "=================================================================="
 
-# 1. Verificar si la base de datos ya está inicializada; si no, inicializarla
-if [ ! -f "${DB_DIR}/PG_VERSION" ]; then
-    echo "📦 Inicializando nuevo cluster de base de datos embebido en Data/db..."
-    mkdir -p "${DB_DIR}"
-    chmod 0700 "${DB_DIR}"
-    "${PG_BIN}/initdb" -D "${DB_DIR}" -U "${DB_USER}" --auth=trust -E UTF8 > "${LOGS_DIR}/initdb.log" 2>&1
-    echo "✅ Cluster inicializado."
-fi
-
-# 2. Iniciar motor PostgreSQL embebido si no está corriendo
-echo "🔌 Verificando estado del motor PostgreSQL embebido..."
 STARTED_PG=0
-if ! "${PG_BIN}/pg_ctl" -D "${DB_DIR}" status > /dev/null 2>&1; then
-    echo "⚡ Arrancando motor PostgreSQL en puerto ${DB_PORT}..."
-    "${PG_BIN}/pg_ctl" -D "${DB_DIR}" -l "${LOGS_DIR}/postgres.log" -o "-p ${DB_PORT} -k ${DB_DIR}" -w start
-    STARTED_PG=1
-    echo "✅ Motor PostgreSQL activo."
-else
-    echo "ℹ️  Motor PostgreSQL ya se encontraba en ejecución."
+if [ "${DB_ENGINE}" = "embedded_postgresql" ]; then
+    if [ ! -x "${PG_BIN}/postgres" ]; then
+        echo "📦 Descargando motor PostgreSQL 17.2 Portable para Linux..."
+        "${PYTHON_BIN}" "${APP_DIR}/scripts/portabilizar_entorno.py" --target linux
+    fi
+    if [ ! -f "${DB_DIR}/PG_VERSION" ]; then
+        echo "📦 Inicializando nuevo cluster de base de datos embebido en Data/db..."
+        mkdir -p "${DB_DIR}"
+        chmod 0700 "${DB_DIR}"
+        "${PG_BIN}/initdb" -D "${DB_DIR}" -U "${DB_USER}" --auth=trust -E UTF8 > "${LOGS_DIR}/initdb.log" 2>&1
+        echo "✅ Cluster inicializado."
+    fi
+
+    echo "🔌 Verificando estado del motor PostgreSQL embebido..."
+    if ! "${PG_BIN}/pg_ctl" -D "${DB_DIR}" status > /dev/null 2>&1; then
+        echo "⚡ Arrancando motor PostgreSQL en puerto ${DB_PORT}..."
+        "${PG_BIN}/pg_ctl" -D "${DB_DIR}" -l "${LOGS_DIR}/postgres.log" -o "-p ${DB_PORT} -k ${DB_DIR}" -w start
+        STARTED_PG=1
+        echo "✅ Motor PostgreSQL activo."
+    else
+        echo "ℹ️  Motor PostgreSQL ya se encontraba en ejecución."
+    fi
 fi
 
-# 3. Exportar variables de entorno para la aplicación Python
-export SAP_DB_HOST="127.0.0.1"
+# Asegurar que la base de datos exista (tanto en modo portable como externo)
+export SAP_PG_DSN="${COMPUTED_DSN}"
+export SAP_DB_HOST="${DB_HOST}"
 export SAP_DB_PORT="${DB_PORT}"
 export SAP_DB_USER="${DB_USER}"
-export SAP_DB_PASSWORD=""
 export SAP_DB_NAME="${DB_NAME}"
-export SAP_PG_DSN="postgresql://${DB_USER}@127.0.0.1:${DB_PORT}/${DB_NAME}"
 export PORT="${HTTP_PORT}"
 
-# 4. Asegurar que la base de datos exista
 "${PYTHON_BIN}" "${APP_DIR}/scripts/portabilizar_entorno.py" --ensure-db
 
-# Función de apagado limpio al salir con Ctrl+C o cerrar terminal
 cleanup() {
     echo ""
     echo "🛑 Deteniendo servicios..."
@@ -116,12 +135,10 @@ cleanup() {
 }
 trap cleanup SIGINT SIGTERM EXIT
 
-# Abrir el navegador automáticamente en segundo plano después de 1 segundo
 (sleep 1.2 && (xdg-open "http://127.0.0.1:${HTTP_PORT}" > /dev/null 2>&1 || sensible-browser "http://127.0.0.1:${HTTP_PORT}" > /dev/null 2>&1 || true)) &
 
 echo "✨ Servidor listo. Presiona Ctrl+C en esta terminal para detener el sistema."
 echo "------------------------------------------------------------------"
 
-# 5. Ejecutar el servidor Python dentro de App/src
 cd "${APP_DIR}/src"
 "${PYTHON_BIN}" web_server.py "${HTTP_PORT}" "0.0.0.0"

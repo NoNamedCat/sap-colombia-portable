@@ -1,31 +1,55 @@
 #!/usr/bin/env python3
 """
-Script de Portabilización Automática (Linux y Windows) para ERP Corporativo Colombia.
-Descarga y empaqueta dentro de App/engine/ y App/runtime/:
-  1. PostgreSQL 17.2 Portable (Linux x86_64 y/o Windows x86_64)
-  2. Python 3.12 Portable + todas las librerías requeridas (Linux x86_64 y/o Windows x86_64)
+================================================================================
+ GESTOR UNIFICADO DE PORTABILIDAD, BASE DE DATOS Y ARRANQUE - ERP COLOMBIA
+================================================================================
+Unifica en una sola herramienta multiplataforma (Linux y Windows):
+  1. Descarga y portabilización automática de PostgreSQL 17.2 y Python 3.12 + librerías
+     dentro de App/engine/ y App/runtime/.
+  2. Gestión de Base de Datos:
+     - Modo A: Base de Datos Portable Embebida (guardada en Data/db o Data/db_windows).
+     - Modo B: PostgreSQL Externo (Servidor en red local, Docker, AWS RDS, Supabase, etc.).
+  3. Exportación e Importación de Respaldo Universal (Data/backups/respaldo_universal.json)
+     para migrar datos entre Linux, Windows o un servidor PostgreSQL externo.
+  4. Lanzador unificado del ERP (arranca motor si es embebido, verifica BD y lanza Web UI).
 
-Uso:
+Uso por línea de comandos:
+  python3 App/scripts/portabilizar_entorno.py --menu
+  python3 App/scripts/portabilizar_entorno.py --start
   python3 App/scripts/portabilizar_entorno.py --target all
-  python3 App/scripts/portabilizar_entorno.py --target linux
-  python3 App/scripts/portabilizar_entorno.py --target windows
+  python3 App/scripts/portabilizar_entorno.py --set-db embedded --port 54329
+  python3 App/scripts/portabilizar_entorno.py --set-db external --host 192.168.1.50 --port 5432 --user postgres --password secret --dbname sap_colombia
+  python3 App/scripts/portabilizar_entorno.py --export-backup
+  python3 App/scripts/portabilizar_entorno.py --import-backup
 """
 
 import argparse
+import getpass
 import io
+import json
 import os
 import platform
 import shutil
+import signal
 import stat
 import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 import urllib.request
+import webbrowser
 import zipfile
+from datetime import datetime
+from urllib.parse import quote_plus
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 APP_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
+BASE_DIR = os.path.abspath(os.path.join(APP_DIR, ".."))
+DATA_DIR = os.path.join(BASE_DIR, "Data")
+LOGS_DIR = os.path.join(DATA_DIR, "logs")
+BACKUPS_DIR = os.path.join(DATA_DIR, "backups")
+CONFIG_PATH = os.path.join(DATA_DIR, "config.json")
 REQ_FILE = os.path.join(APP_DIR, "src", "requirements.txt")
 
 PG_LINUX_URL = (
@@ -45,6 +69,68 @@ PY_LINUX_URL = (
 PY_WIN_URL = "https://www.python.org/ftp/python/3.12.8/python-3.12.8-embed-amd64.zip"
 
 
+def is_windows_os() -> bool:
+    return platform.system().lower().startswith("win")
+
+
+def load_config() -> dict:
+    os.makedirs(DATA_DIR, exist_ok=True)
+    default_cfg = {
+        "server": {
+            "host": "127.0.0.1",
+            "http_port": 8000,
+        },
+        "database": {
+            "engine": "embedded_postgresql",
+            "host": "127.0.0.1",
+            "port": 54329,
+            "user": "sap",
+            "password": "",
+            "dbname": "sap_colombia",
+            "sslmode": "",
+            "dsn": "",
+        },
+    }
+    if os.path.isfile(CONFIG_PATH):
+        try:
+            with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+                loaded = json.load(f)
+            default_cfg["server"].update(loaded.get("server", {}))
+            default_cfg["database"].update(loaded.get("database", {}))
+        except Exception:
+            pass
+    return default_cfg
+
+
+def save_config(cfg: dict) -> None:
+    os.makedirs(DATA_DIR, exist_ok=True)
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(cfg, f, indent=2, ensure_ascii=False)
+
+
+def build_dsn_from_cfg(db_cfg: dict, override_dbname: str | None = None) -> str:
+    custom_dsn = (db_cfg.get("dsn") or "").strip()
+    if custom_dsn and not override_dbname:
+        return custom_dsn
+    host = db_cfg.get("host") or "127.0.0.1"
+    port = int(db_cfg.get("port") or 54329)
+    user = db_cfg.get("user") or "sap"
+    password = db_cfg.get("password") or ""
+    dbname = override_dbname or db_cfg.get("dbname") or "sap_colombia"
+    sslmode = db_cfg.get("sslmode") or ""
+
+    auth = quote_plus(str(user))
+    if password:
+        auth += f":{quote_plus(str(password))}"
+    dsn = f"postgresql://{auth}@{host}:{port}/{dbname}"
+    if sslmode:
+        dsn += f"?sslmode={quote_plus(str(sslmode))}"
+    return dsn
+
+
+# ==============================================================================
+# 1. DESCARGA Y PORTABILIZACIÓN DE MOTORES (POSTGRESQL 17.2 + PYTHON 3.12)
+# ==============================================================================
 def _download_bytes(url: str, desc: str) -> bytes:
     print(f"⬇️  Descargando {desc}...\n   URL: {url}")
     req = urllib.request.Request(url, headers={"User-Agent": "SAP-Colombia-Portabilizer/2.0"})
@@ -132,9 +218,9 @@ def setup_linux_python(force: bool = False):
     else:
         print(f"✅ Python Portable Linux ya existe en: {dest}")
 
-    print("📦 Instalando librerías requeridas dentro de App/runtime/linux...")
+    print("📦 Verificando librerías requeridas dentro de App/runtime/linux...")
     subprocess.run(
-        [py_bin, "-m", "pip", "install", "--quiet", "--upgrade", "-r", REQ_FILE],
+        [py_bin, "-m", "pip", "install", "--quiet", "-r", REQ_FILE],
         check=True,
     )
     print(f"✅ Python 3.12 Linux + librerías listos en: {dest}")
@@ -154,7 +240,6 @@ def setup_windows_python(force: bool = False):
         with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
             zf.extractall(dest)
 
-        # Configurar python312._pth para habilitar site-packages y App/src
         pth_file = os.path.join(dest, "python312._pth")
         pth_content = (
             "python312.zip\n"
@@ -210,61 +295,481 @@ def setup_windows_python(force: bool = False):
     print(f"✅ Python 3.12.8 Windows + librerías nativas (win_amd64) listos en: {dest}")
 
 
-def ensure_database_exists(host: str, port: int, user: str, dbname: str):
-    """Crea la base de datos en PostgreSQL usando psycopg2 sin depender de createdb/psql."""
+# ==============================================================================
+# 2. GESTIÓN DE BASE DE DATOS (EMBEBIDA PORTABLE vs POSTGRESQL EXTERNO)
+# ==============================================================================
+def ensure_database_exists(db_cfg: dict | None = None):
+    """Verifica conexión al servidor PostgreSQL (embebido o externo) y crea la BD si no existe."""
     import psycopg2
     from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
-    conn = psycopg2.connect(host=host, port=port, user=user, dbname="postgres")
+    if db_cfg is None:
+        db_cfg = load_config()["database"]
+
+    dbname = db_cfg.get("dbname") or os.environ.get("SAP_DB_NAME") or "sap_colombia"
+    target_dsn = build_dsn_from_cfg(db_cfg)
+    admin_dsn = build_dsn_from_cfg(db_cfg, override_dbname="postgres")
+
+    try:
+        conn = psycopg2.connect(target_dsn)
+        conn.close()
+        return True
+    except Exception:
+        pass
+
+    conn = psycopg2.connect(admin_dsn)
     conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
     cur = conn.cursor()
     cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (dbname,))
     exists = cur.fetchone() is not None
     if not exists:
-        print(f"🗄️  Creando base de datos '{dbname}' en puerto {port}...")
+        print(f"🗄️  Creando base de datos '{dbname}'...")
         cur.execute(f'CREATE DATABASE "{dbname}" ENCODING \'UTF8\'')
     cur.close()
     conn.close()
+    return True
+
+
+def export_universal_backup(custom_path: str | None = None) -> str:
+    """Exporta todas las tablas de la base de datos activa a un archivo JSON portable universal."""
+    import psycopg2
+    import psycopg2.extras
+
+    os.makedirs(BACKUPS_DIR, exist_ok=True)
+    cfg = load_config()
+    dsn = build_dsn_from_cfg(cfg["database"])
+    conn = psycopg2.connect(dsn, cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT table_name FROM information_schema.tables "
+        "WHERE table_schema = 'public' AND table_type = 'BASE TABLE' ORDER BY table_name"
+    )
+    tables = [r["table_name"] for r in cur.fetchall()]
+
+    dump_data = {
+        "exported_at": datetime.now().isoformat(),
+        "database_engine": cfg["database"].get("engine"),
+        "tables": {},
+    }
+
+    for tbl in tables:
+        cur.execute(f'SELECT * FROM "{tbl}"')
+        rows = [dict(r) for r in cur.fetchall()]
+        dump_data["tables"][tbl] = rows
+
+    cur.close()
+    conn.close()
+
+    out_path = custom_path or os.path.join(BACKUPS_DIR, "respaldo_universal.json")
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(dump_data, f, indent=2, ensure_ascii=False, default=str)
+
+    total_rows = sum(len(v) for v in dump_data["tables"].values())
+    print(f"✅ Respaldo portable universal exportado: {out_path} ({len(tables)} tablas, {total_rows} registros)")
+    return out_path
+
+
+def import_universal_backup(custom_path: str | None = None) -> None:
+    """Restaura un respaldo portable universal en la base de datos activa (portable o externa)."""
+    import psycopg2
+
+    in_path = custom_path or os.path.join(BACKUPS_DIR, "respaldo_universal.json")
+    if not os.path.isfile(in_path):
+        print(f"⚠️ No se encontró el archivo de respaldo en: {in_path}")
+        return
+
+    with open(in_path, "r", encoding="utf-8") as f:
+        dump_data = json.load(f)
+
+    cfg = load_config()
+    ensure_database_exists(cfg["database"])
+    dsn = build_dsn_from_cfg(cfg["database"])
+
+    # Asegurar que el esquema esté creado antes de importar
+    sys.path.insert(0, os.path.join(APP_DIR, "src"))
+    os.environ["SAP_PG_DSN"] = dsn
+    from sap_colombia import database as sap_db
+    sap_db.inicializar_base_datos()
+
+    conn = psycopg2.connect(dsn)
+    cur = conn.cursor()
+    tables_data = dump_data.get("tables", {})
+
+    for tbl, rows in tables_data.items():
+        if not rows:
+            continue
+        cols = list(rows[0].keys())
+        col_list = ", ".join(f'"{c}"' for c in cols)
+        placeholders = ", ".join(["%s"] * len(cols))
+        cur.execute(f'TRUNCATE TABLE "{tbl}" RESTART IDENTITY CASCADE')
+        for r in rows:
+            vals = [r[c] for c in cols]
+            cur.execute(
+                f'INSERT INTO "{tbl}" ({col_list}) VALUES ({placeholders}) ON CONFLICT DO NOTHING',
+                vals,
+            )
+    conn.commit()
+    cur.close()
+    conn.close()
+    print(f"✅ Respaldo universal restaurado exitosamente desde: {in_path}")
+
+
+# ==============================================================================
+# 3. ARRANQUE UNIFICADO DEL SISTEMA (EMBEBIDO O EXTERNO)
+# ==============================================================================
+def start_erp_system():
+    cfg = load_config()
+    srv_cfg = cfg["server"]
+    db_cfg = cfg["database"]
+    engine_mode = db_cfg.get("engine", "embedded_postgresql")
+    http_host = srv_cfg.get("host", "127.0.0.1")
+    http_port = int(srv_cfg.get("http_port", 8000))
+
+    os.makedirs(LOGS_DIR, exist_ok=True)
+    win = is_windows_os()
+
+    # Asegurar que el runtime Python del SO actual esté listo
+    if win:
+        py_bin = os.path.join(APP_DIR, "runtime", "windows", "python.exe")
+        if not os.path.isfile(py_bin):
+            setup_windows_python()
+        if not os.path.isfile(py_bin):
+            py_bin = sys.executable
+    else:
+        py_bin = os.path.join(APP_DIR, "runtime", "linux", "bin", "python3")
+        if not os.path.isfile(py_bin):
+            setup_linux_python()
+        if not os.path.isfile(py_bin):
+            py_bin = sys.executable
+
+    started_embedded_pg = False
+    pg_ctl_bin = None
+    db_dir = None
+
+    if engine_mode == "embedded_postgresql":
+        db_cfg["host"] = "127.0.0.1"
+        db_port = int(db_cfg.get("port", 54329))
+        db_user = db_cfg.get("user", "sap")
+        if win:
+            setup_windows_postgres()
+            pg_bin_dir = os.path.join(APP_DIR, "engine", "windows", "bin")
+            initdb_bin = os.path.join(pg_bin_dir, "initdb.exe")
+            pg_ctl_bin = os.path.join(pg_bin_dir, "pg_ctl.exe")
+            db_dir = os.path.join(DATA_DIR, "db_windows")
+        else:
+            setup_linux_postgres()
+            pg_bin_dir = os.path.join(APP_DIR, "engine", "linux", "bin")
+            pg_lib_dir = os.path.join(APP_DIR, "engine", "linux", "lib")
+            os.environ["LD_LIBRARY_PATH"] = f"{pg_lib_dir}:{os.environ.get('LD_LIBRARY_PATH', '')}"
+            initdb_bin = os.path.join(pg_bin_dir, "initdb")
+            pg_ctl_bin = os.path.join(pg_bin_dir, "pg_ctl")
+            db_dir = os.path.join(DATA_DIR, "db")
+
+        os.makedirs(db_dir, exist_ok=True)
+        if not win:
+            try:
+                os.chmod(db_dir, 0o700)
+            except Exception:
+                pass
+
+        # 1. Inicializar cluster en Data/ si no existe
+        pg_version_file = os.path.join(db_dir, "PG_VERSION")
+        if not os.path.isfile(pg_version_file):
+            print(f"📦 Inicializando cluster de Base de Datos Portable en: {db_dir}...")
+            init_cmd = [initdb_bin, "-D", db_dir, "-U", db_user, "--auth=trust", "-E", "UTF8"]
+            if win:
+                init_cmd.append("--no-locale")
+            with open(os.path.join(LOGS_DIR, "initdb.log"), "w") as logf:
+                subprocess.run(init_cmd, stdout=logf, stderr= subprocess.STDOUT, check=True)
+            print("✅ Cluster portable inicializado.")
+
+        # 2. Iniciar PostgreSQL embebido si no está corriendo
+        status_res = subprocess.run([pg_ctl_bin, "-D", db_dir, "status"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if status_res.returncode != 0:
+            print(f"⚡ Arrancando motor PostgreSQL Portable en puerto {db_port}...")
+            pg_log = os.path.join(LOGS_DIR, "postgres.log")
+            pg_opts = f"-p {db_port} -h 127.0.0.1" if win else f"-p {db_port} -k {db_dir}"
+            subprocess.run([pg_ctl_bin, "-D", db_dir, "-l", pg_log, "-o", pg_opts, "-w", "start"], check=True)
+            started_embedded_pg = True
+            print("✅ Motor PostgreSQL Portable activo.")
+        else:
+            print("ℹ️  Motor PostgreSQL Portable ya se encontraba en ejecución.")
+    else:
+        print(f"🌐 Modo PostgreSQL EXTERNO activo -> {db_cfg.get('host')}:{db_cfg.get('port')}/{db_cfg.get('dbname')}")
+
+    # 3. Asegurar que la base de datos exista (embebida o externa)
+    ensure_database_exists(db_cfg)
+    dsn = build_dsn_from_cfg(db_cfg)
+
+    print("==================================================================")
+    print(" 🚀 ERP CORPORATIVO COLOMBIA - SISTEMA EN EJECUCIÓN")
+    print("==================================================================")
+    print(f"📂 Directorio Base : {BASE_DIR}")
+    if engine_mode == "embedded_postgresql":
+        print(f"🗄️  Base de Datos   : PORTABLE EMBEBIDA ({db_dir} - Puerto {db_cfg.get('port')})")
+    else:
+        print(f"🗄️  Base de Datos   : POSTGRESQL EXTERNO ({db_cfg.get('host')}:{db_cfg.get('port')}/{db_cfg.get('dbname')})")
+    print(f"🐍 Python Runtime  : {py_bin}")
+    print(f"🌐 Interfaz Web    : http://127.0.0.1:{http_port}")
+    print(f"📖 Tutorial Visual : http://127.0.0.1:{http_port}/tutorial/index.html")
+    print("==================================================================")
+
+    env = os.environ.copy()
+    env["SAP_PG_DSN"] = dsn
+    env["SAP_DB_HOST"] = str(db_cfg.get("host", "127.0.0.1"))
+    env["SAP_DB_PORT"] = str(db_cfg.get("port", 54329))
+    env["SAP_DB_USER"] = str(db_cfg.get("user", "sap"))
+    env["SAP_DB_PASSWORD"] = str(db_cfg.get("password", ""))
+    env["SAP_DB_NAME"] = str(db_cfg.get("dbname", "sap_colombia"))
+    env["PORT"] = str(http_port)
+    env["PYTHONPATH"] = os.path.join(APP_DIR, "src")
+
+    def _stop_pg():
+        if started_embedded_pg and pg_ctl_bin and db_dir:
+            print("\n🛑 Deteniendo motor PostgreSQL Portable de forma segura...")
+            subprocess.run([pg_ctl_bin, "-D", db_dir, "-m", "fast", "-w", "stop"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            print("👋 Sistema cerrado correctamente.")
+
+    # Abrir navegador tras 1.2 segundos
+    def _open_browser():
+        time.sleep(1.2)
+        try:
+            webbrowser.open(f"http://127.0.0.1:{http_port}")
+        except Exception:
+            pass
+
+    import threading
+    threading.Thread(target=_open_browser, daemon=True).start()
+
+    try:
+        subprocess.run(
+            [py_bin, "web_server.py", str(http_port), http_host],
+            cwd=os.path.join(APP_DIR, "src"),
+            env=env,
+        )
+    except KeyboardInterrupt:
+        pass
+    finally:
+        _stop_pg()
+
+
+# ==============================================================================
+# 4. MENÚ INTERACTIVO UNIFICADO DE CONFIGURACIÓN Y PORTABILIZACIÓN
+# ==============================================================================
+def print_status_banner():
+    cfg = load_config()
+    db_cfg = cfg["database"]
+    srv_cfg = cfg["server"]
+    engine = db_cfg.get("engine", "embedded_postgresql")
+
+    linux_pg_ok = os.path.isfile(os.path.join(APP_DIR, "engine", "linux", "bin", "postgres"))
+    linux_py_ok = os.path.isfile(os.path.join(APP_DIR, "runtime", "linux", "bin", "python3"))
+    win_pg_ok = os.path.isfile(os.path.join(APP_DIR, "engine", "windows", "bin", "postgres.exe"))
+    win_py_ok = os.path.isfile(os.path.join(APP_DIR, "runtime", "windows", "python.exe"))
+
+    print("\n======================================================================")
+    print(" 🎛️  PANEL DE CONTROL Y PORTABILIDAD — ERP CORPORATIVO COLOMBIA")
+    print("======================================================================")
+    if engine == "embedded_postgresql":
+        print(f" 🗄️  Modo Base de Datos : PORTABLE EMBEBIDA en Data/ (Puerto {db_cfg.get('port', 54329)})")
+    else:
+        print(f" 🗄️  Modo Base de Datos : POSTGRESQL EXTERNO ({db_cfg.get('user')}@{db_cfg.get('host')}:{db_cfg.get('port')}/{db_cfg.get('dbname')})")
+    print(f" 🌐 Servidor Web HTTP  : http://{srv_cfg.get('host', '127.0.0.1')}:{srv_cfg.get('http_port', 8000)}")
+    print(f" 🐧 Motor Portable Linux   : PostgreSQL [{'✅ LISTO' if linux_pg_ok else '⚠️ PENDIENTE'}] | Python [{'✅ LISTO' if linux_py_ok else '⚠️ PENDIENTE'}]")
+    print(f" 🪟 Motor Portable Windows : PostgreSQL [{'✅ LISTO' if win_pg_ok else '⚠️ PENDIENTE'}] | Python [{'✅ LISTO' if win_py_ok else '⚠️ PENDIENTE'}]")
+    print("======================================================================")
+
+
+def configure_embedded_db_interactive():
+    cfg = load_config()
+    port_in = input(f"Puerto local para PostgreSQL Portable [{cfg['database'].get('port', 54329)}]: ").strip()
+    port = int(port_in) if port_in.isdigit() else int(cfg["database"].get("port", 54329))
+    dbname = input(f"Nombre de la base de datos [{cfg['database'].get('dbname', 'sap_colombia')}]: ").strip() or cfg["database"].get("dbname", "sap_colombia")
+
+    cfg["database"].update({
+        "engine": "embedded_postgresql",
+        "host": "127.0.0.1",
+        "port": port,
+        "user": "sap",
+        "password": "",
+        "dbname": dbname,
+        "sslmode": "",
+        "dsn": "",
+    })
+    save_config(cfg)
+    print(f"\n✅ Configurado en MODO PORTABLE EMBEBIDO (Data/db en puerto {port}).")
+
+
+def configure_external_db_interactive():
+    cfg = load_config()
+    db_cfg = cfg["database"]
+    print("\n--- CONFIGURAR SERVIDOR POSTGRESQL EXTERNO ---")
+    host = input(f"Host o IP del servidor PostgreSQL [{db_cfg.get('host', 'localhost')}]: ").strip() or db_cfg.get("host", "localhost")
+    port_in = input("Puerto PostgreSQL [5432]: ").strip()
+    port = int(port_in) if port_in.isdigit() else 5432
+    user = input(f"Usuario de PostgreSQL [{db_cfg.get('user', 'postgres')}]: ").strip() or "postgres"
+    password = getpass.getpass("Contraseña de PostgreSQL (vacío si no tiene): ")
+    dbname = input(f"Nombre de la base de datos [{db_cfg.get('dbname', 'sap_colombia')}]: ").strip() or "sap_colombia"
+    sslmode = input("Modo SSL (vacío, disable, prefer, require) []: ").strip()
+
+    new_db_cfg = {
+        "engine": "external_postgresql",
+        "host": host,
+        "port": port,
+        "user": user,
+        "password": password,
+        "dbname": dbname,
+        "sslmode": sslmode,
+        "dsn": "",
+    }
+
+    print(f"\n🔌 Probando conexión a {user}@{host}:{port}/{dbname}...")
+    try:
+        ensure_database_exists(new_db_cfg)
+        cfg["database"] = new_db_cfg
+        save_config(cfg)
+        print(f"✅ Conexión exitosa. Configuración guardada en Data/config.json para usar PostgreSQL Externo.")
+    except Exception as e:
+        print(f"⚠️ No se pudo conectar en este momento ({e}).")
+        save_anyway = input("¿Deseas guardar esta configuración de todos modos? (s/n) [s]: ").strip().lower()
+        if save_anyway in ("", "s", "si", "y", "yes"):
+            cfg["database"] = new_db_cfg
+            save_config(cfg)
+            print("✅ Configuración guardada en Data/config.json.")
+
+
+def interactive_menu():
+    while True:
+        print_status_banner()
+        print("  1) 🚀 Iniciar el ERP Corporativo Ahora")
+        print("  2) 🏠 Cambiar a Base de Datos PORTABLE Embebida (guardada en Data/)")
+        print("  3) 🌐 Cambiar a Servidor PostgreSQL EXTERNO (Red Local / Nube / Docker)")
+        print("  4) 📦 Portabilizar / Descargar Motores (Linux + Windows para USB)")
+        print("  5) 💾 Exportar Respaldo Universal de Datos (Data/backups/respaldo_universal.json)")
+        print("  6) 📥 Importar / Restaurar Respaldo Universal en la Base de Datos Activa")
+        print("  7) 🔧 Cambiar Puerto Web HTTP / Acceso desde Red Local (LAN)")
+        print("  0) Salir")
+        choice = input("\n👉 Selecciona una opción [1]: ").strip() or "1"
+
+        if choice == "1":
+            start_erp_system()
+            break
+        elif choice == "2":
+            configure_embedded_db_interactive()
+        elif choice == "3":
+            configure_external_db_interactive()
+        elif choice == "4":
+            print("\n  a) Portabilizar AMBOS (Linux + Windows — ideal para memoria USB híbrida)")
+            print("  b) Portabilizar solo Linux (PostgreSQL 17.2 + Python 3.12)")
+            print("  c) Portabilizar solo Windows (PostgreSQL 17.2 + Python 3.12)")
+            sub = input("  Elige opción [a]: ").strip().lower() or "a"
+            if sub == "b":
+                setup_linux_postgres()
+                setup_linux_python()
+            elif sub == "c":
+                setup_windows_postgres()
+                setup_windows_python()
+            else:
+                setup_linux_postgres()
+                setup_linux_python()
+                setup_windows_postgres()
+                setup_windows_python()
+        elif choice == "5":
+            export_universal_backup()
+        elif choice == "6":
+            import_universal_backup()
+        elif choice == "7":
+            cfg = load_config()
+            p_in = input(f"Puerto Web HTTP [{cfg['server'].get('http_port', 8000)}]: ").strip()
+            if p_in.isdigit():
+                cfg["server"]["http_port"] = int(p_in)
+            lan = input("¿Permitir acceso desde otros equipos de la red local LAN? (s/n) [s]: ").strip().lower()
+            cfg["server"]["host"] = "0.0.0.0" if lan in ("", "s", "si", "y", "yes") else "127.0.0.1"
+            save_config(cfg)
+            print("✅ Configuración de red guardada en Data/config.json.")
+        elif choice == "0":
+            break
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Portabilizador automático de PostgreSQL + Python")
-    parser.add_argument(
-        "--target",
-        choices=["linux", "windows", "all", "auto"],
-        default="auto",
-        help="Sistema operativo a portabilizar (linux, windows, all, auto)",
-    )
-    parser.add_argument("--force", action="store_true", help="Re-descargar aunque ya exista")
-    parser.add_argument("--ensure-db", action="store_true", help="Asegurar que la BD sap_colombia exista")
+    parser = argparse.ArgumentParser(description="Gestor Unificado de Portabilidad y Base de Datos ERP Colombia")
+    parser.add_argument("--menu", action="store_true", help="Abrir menú interactivo de configuración y arranque")
+    parser.add_argument("--start", action="store_true", help="Iniciar el ERP directamente con la configuración actual")
+    parser.add_argument("--target", choices=["linux", "windows", "all", "auto"], help="Portabilizar motores (linux, windows, all)")
+    parser.add_argument("--force", action="store_true", help="Forzar re-descarga de motores")
+    parser.add_argument("--ensure-db", action="store_true", help="Asegurar que la base de datos activa exista")
+    parser.add_argument("--set-db", choices=["embedded", "external"], help="Configurar modo de base de datos por CLI")
+    parser.add_argument("--host", help="Host de PostgreSQL externo")
+    parser.add_argument("--port", type=int, help="Puerto de PostgreSQL")
+    parser.add_argument("--user", help="Usuario de PostgreSQL")
+    parser.add_argument("--password", help="Contraseña de PostgreSQL")
+    parser.add_argument("--dbname", help="Nombre de la base de datos")
+    parser.add_argument("--sslmode", default="", help="Modo SSL para PostgreSQL externo")
+    parser.add_argument("--export-backup", action="store_true", help="Exportar respaldo universal en Data/backups/")
+    parser.add_argument("--import-backup", action="store_true", help="Importar respaldo universal desde Data/backups/")
     args = parser.parse_args()
 
-    if args.ensure_db:
-        port = int(os.environ.get("SAP_DB_PORT", "54329"))
-        user = os.environ.get("SAP_DB_USER", "sap")
-        dbname = os.environ.get("SAP_DB_NAME", "sap_colombia")
-        ensure_database_exists("127.0.0.1", port, user, dbname)
+    if args.set_db:
+        cfg = load_config()
+        if args.set_db == "embedded":
+            cfg["database"].update({
+                "engine": "embedded_postgresql",
+                "host": "127.0.0.1",
+                "port": args.port or 54329,
+                "user": args.user or "sap",
+                "password": "",
+                "dbname": args.dbname or "sap_colombia",
+                "sslmode": "",
+                "dsn": "",
+            })
+            save_config(cfg)
+            print(f"✅ Base de datos configurada en modo PORTABLE EMBEBIDA (puerto {cfg['database']['port']}).")
+        else:
+            cfg["database"].update({
+                "engine": "external_postgresql",
+                "host": args.host or "localhost",
+                "port": args.port or 5432,
+                "user": args.user or "postgres",
+                "password": args.password or "",
+                "dbname": args.dbname or "sap_colombia",
+                "sslmode": args.sslmode or "",
+                "dsn": "",
+            })
+            save_config(cfg)
+            print(f"✅ Base de datos configurada en modo POSTGRESQL EXTERNO ({cfg['database']['host']}:{cfg['database']['port']}/{cfg['database']['dbname']}).")
         return
 
-    target = args.target
-    if target == "auto":
-        target = "windows" if platform.system().lower().startswith("win") else "linux"
+    if args.ensure_db:
+        ensure_database_exists()
+        return
 
-    print("==================================================================")
-    print(f" 📦 PORTABILIZADOR AUTOMÁTICO ERP COLOMBIA (Objetivo: {target.upper()})")
-    print("==================================================================")
+    if args.export_backup:
+        export_universal_backup()
+        return
 
-    if target in ("linux", "all"):
-        setup_linux_postgres(force=args.force)
-        setup_linux_python(force=args.force)
+    if args.import_backup:
+        import_universal_backup()
+        return
 
-    if target in ("windows", "all"):
-        setup_windows_postgres(force=args.force)
-        setup_windows_python(force=args.force)
+    if args.target:
+        target = args.target
+        if target == "auto":
+            target = "windows" if is_windows_os() else "linux"
+        if target in ("linux", "all"):
+            setup_linux_postgres(force=args.force)
+            setup_linux_python(force=args.force)
+        if target in ("windows", "all"):
+            setup_windows_postgres(force=args.force)
+            setup_windows_python(force=args.force)
+        return
 
-    print("==================================================================")
-    print(" 🎉 ¡Portabilización completada exitosamente!")
-    print("==================================================================")
+    if args.start:
+        start_erp_system()
+        return
+
+    # Si se invoca con --menu o sin argumentos, abrir menú interactivo
+    interactive_menu()
 
 
 if __name__ == "__main__":

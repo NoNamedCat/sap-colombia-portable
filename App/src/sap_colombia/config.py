@@ -54,15 +54,31 @@ def _load_portable_config() -> dict:
 
 
 def pg_dsn() -> str:
-    """Retorna el DSN PostgreSQL desde SAP_PG_DSN o Data/config.json."""
+    """Retorna el DSN PostgreSQL desde SAP_PG_DSN o Data/config.json (soporta BD portable embebida o PostgreSQL externo)."""
+    from urllib.parse import quote_plus
+
     env_dsn = _get_env("SAP_PG_DSN")
     if env_dsn:
         return env_dsn
     cfg = _load_portable_config().get("database", {})
-    port = cfg.get("port", 54329)
-    user = cfg.get("user", "sap")
-    dbname = cfg.get("dbname", "sap_colombia")
-    return f"postgresql://{user}@127.0.0.1:{port}/{dbname}"
+    custom_dsn = (cfg.get("dsn") or "").strip()
+    if custom_dsn:
+        return custom_dsn
+    host = _get_env("SAP_DB_HOST") or cfg.get("host") or "127.0.0.1"
+    port = _get_env("SAP_DB_PORT") or cfg.get("port") or 54329
+    user = _get_env("SAP_DB_USER") or cfg.get("user") or "sap"
+    password = _get_env("SAP_DB_PASSWORD") if os.environ.get("SAP_DB_PASSWORD") is not None else (cfg.get("password") or "")
+    dbname = _get_env("SAP_DB_NAME") or cfg.get("dbname") or "sap_colombia"
+    sslmode = _get_env("SAP_DB_SSLMODE") or cfg.get("sslmode") or ""
+
+    auth_part = quote_plus(str(user))
+    if password:
+        auth_part += f":{quote_plus(str(password))}"
+    dsn = f"postgresql://{auth_part}@{host}:{port}/{dbname}"
+    if sslmode:
+        dsn += f"?sslmode={quote_plus(str(sslmode))}"
+    return dsn
+
 
 
 def http_port() -> int:
