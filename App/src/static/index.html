@@ -1,0 +1,2155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAP Business One Colombia - Facturación Electrónica DIAN</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <!-- Login Screen -->
+  <div id="login-screen" class="login-screen">
+    <div class="login-card">
+      <div class="login-brand-header">
+        <div class="sap-logo" id="login-logo-box">ERP</div>
+        <span class="login-compliance-pill">DIAN UBL 2.1 · NIIF</span>
+      </div>
+      <h2 id="login-brand-title">ERP Corporativo Colombia</h2>
+      <p class="login-subtitle">Plataforma ERP & Facturación Electrónica DIAN</p>
+      <form id="login-form">
+        <div class="form-group">
+          <label for="login-usuario">Correo Corporativo</label>
+          <input type="text" id="login-usuario" class="form-control" placeholder="ejemplo@empresa.com" autocomplete="username" required>
+        </div>
+        <div class="form-group">
+          <label for="login-password">Contraseña</label>
+          <input type="password" id="login-password" class="form-control" placeholder="••••••••" autocomplete="current-password" required>
+        </div>
+        <div class="form-group" id="login-totp-group" style="display:none;">
+          <label for="login-totp">Código 2FA / TOTP (6 dígitos)</label>
+          <input type="text" id="login-totp" class="form-control" maxlength="6" inputmode="numeric" placeholder="000000" autocomplete="one-time-code">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Iniciar Sesión Segura</button>
+      </form>
+      <div id="login-error" class="login-error" style="display:none;"></div>
+      <div class="login-footer-meta">
+        <span>🔒 Cifrado SHA-384 / XAdES-EPES</span>
+        <span>•</span>
+        <span>PostgreSQL Enterprise</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fuerza cambio de contraseña (primer ingreso) -->
+  <div id="force-change-screen" class="login-screen" style="display:none;">
+    <div class="login-card">
+      <div class="login-brand-header">
+        <div class="sap-logo">ERP</div>
+        <span class="login-compliance-pill">Seguridad</span>
+      </div>
+      <h2>Actualización de Contraseña</h2>
+      <p class="login-subtitle">Por políticas de seguridad corporativa, actualice su contraseña inicial.</p>
+      <form id="force-change-form">
+        <div class="form-group">
+          <label for="fc-password">Nueva contraseña:</label>
+          <input type="password" id="fc-password" class="form-control" autocomplete="new-password" required>
+        </div>
+        <div class="form-group">
+          <label for="fc-password-confirm">Confirmar contraseña:</label>
+          <input type="password" id="fc-password-confirm" class="form-control" autocomplete="new-password" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Cambiar contraseña</button>
+      </form>
+      <div id="force-change-error" class="login-error" style="display:none;"></div>
+    </div>
+  </div>
+
+  <header class="sap-header" id="main-header">
+    <div class="logo-area">
+      <button type="button" class="sidebar-toggle-btn" id="btn-toggle-sidebar" title="Contraer / Expandir menú lateral" aria-label="Alternar menú">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="sap-logo" id="header-logo-box" title="Clic para personalizar logo y marca de la empresa" style="cursor:pointer;" onclick="openActiveCompanyBranding()">ERP</div>
+      <div class="header-titles">
+        <div class="header-title-row">
+          <h1 id="header-main-title">Facturación Electrónica DIAN (UBL 2.1)</h1>
+          <span class="header-breadcrumb" id="header-breadcrumb">Resumen › Dashboard Gerencial</span>
+        </div>
+        <span class="subtitle" id="empresa-nombre">Cargando Emisor...</span>
+      </div>
+    </div>
+
+    <!-- Tenant Switcher y Selector de Modo de Consola -->
+    <div class="header-tenant-mode" id="header-tenant-mode">
+      <div id="tenant-switcher-container" class="tenant-pill">
+        <label for="select-empresa-activa">Empresa</label>
+        <select id="select-empresa-activa" class="form-control">
+          <option value="">Cargando empresas...</option>
+        </select>
+      </div>
+      <button type="button" class="btn btn-secondary btn-sm" id="btn-customize-active-empresa" onclick="openActiveCompanyBranding()" title="Personalizar Logo, Nombre, Colores y Fuente de esta Empresa">
+        🎨 Marca & Tema
+      </button>
+      <a href="/tutorial/index.html" target="_blank" class="btn btn-secondary btn-sm" id="btn-open-tutorial" title="Abrir Tutorial Paso a Paso" style="text-decoration:none; white-space:nowrap; height:32px; display:inline-flex; align-items:center; font-size:11.5px; font-weight:600; padding:0 10px; border-radius:8px;">
+        📖 Tutorial
+      </a>
+      <button class="btn btn-secondary btn-sm" id="btn-toggle-modo-sistema" style="display:none;">
+        <span id="label-modo-sistema">⚙️ Consola Sistema</span>
+      </button>
+    </div>
+
+    <div class="header-status">
+      <span class="badge" id="periodo-status-badge" style="display:none;">Periodo: …</span>
+      <span class="badge" id="dian-status-badge">DIAN: verificando…</span>
+      <span class="environment" id="empresa-ambiente">Ambiente: …</span>
+      <span class="user-badge" id="user-badge"></span>
+      <button class="btn btn-secondary btn-sm" id="btn-logout" title="Cerrar sesión">Salir</button>
+    </div>
+  </header>
+
+  <!-- Navegación Lateral Ejecutiva (Sidebar Fiori Horizon) -->
+  <nav class="sap-tabs" id="main-nav-tabs" aria-label="Menú Principal ERP">
+    <div class="sidebar-search-box">
+      <svg class="sidebar-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="search" id="sidebar-search-input" placeholder="Buscar módulo... (Ctrl+K)" autocomplete="off">
+    </div>
+
+    <div class="tab-group" id="group-ventas">
+      <span class="tab-group-label">Comercial, Ventas & Cartera</span>
+      <button class="tab-btn active" data-tab="dashboard" title="Dashboard Gerencial">
+        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span>
+        <span class="nav-label">Dashboard</span>
+      </button>
+      <button class="tab-btn" data-tab="facturacion" title="Facturación Electrónica DIAN">
+        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
+        <span class="nav-label">Facturación</span>
+      </button>
+      <button class="tab-btn" data-tab="pos" title="Punto de Venta POS">
+        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg></span>
+        <span class="nav-label">Punto de Venta POS</span>
+      </button>
+      <button class="tab-btn" data-tab="ciclo-comercial" title="Cotizaciones, Pedidos y Remisiones">
+        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></span>
+        <span class="nav-label">Ciclo Comercial</span>
+      </button>
+      <button class="tab-btn" data-tab="cartera" title="Cuentas por Cobrar y Recibos de Caja">
+        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+        <span class="nav-label">Cartera & Recaudos</span>
+      </button>
+      <button class="tab-btn" data-tab="notas-credito" title="Notas Crédito Electrónicas">
+        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span>
+        <span class="nav-label">Notas Crédito</span>
+      </button>
+      <button class="tab-btn" data-tab="notas-debito" title="Notas Débito Electrónicas">
+        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><line x1="12" y1="12" x2="12" y2="18"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span>
+        <span class="nav-label">Notas Débito</span>
+      </button>
+    </div>
+
+    <div class="tab-group" id="group-compras">
+      <span class="tab-group-label">Compras, CxP & Abastecimiento</span>
+      <button class="tab-btn" data-tab="compras-cxp" title="Buzón RADIAN, Compras y Cuentas por Pagar">
+        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></span>
+        <span class="nav-label">Buzón Compras & CxP</span>
+      </button>
+      <button class="tab-btn" data-tab="documento-soporte" title="Documento Soporte en Adquisiciones a No Obligados">
+        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
+        <span class="nav-label">Doc. Soporte DIAN</span>
+      </button>
+    </div>
+
+    <div class="tab-group" id="group-sistema">
+      <span class="tab-group-label">Finanzas, RRHH & Plataforma</span>
+      <button class="tab-btn" data-tab="contabilidad" title="Libro Diario, Balance, P&G, Flujo de Efectivo y Kárdex">
+        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+        <span class="nav-label">Contabilidad & NIIF</span>
+      </button>
+      <button class="tab-btn" data-tab="impuestos" title="Medios Magnéticos y Exógena DIAN">
+        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M3 10h18"/><polygon points="12 2 2 7 22 7"/><line x1="6" y1="10" x2="6" y2="21"/><line x1="10" y1="10" x2="10" y2="21"/><line x1="14" y1="10" x2="14" y2="21"/><line x1="18" y1="10" x2="18" y2="21"/></svg></span>
+        <span class="nav-label">Impuestos & Exógena</span>
+      </button>
+      <button class="tab-btn" data-tab="nomina" title="Nómina Electrónica DIAN y Liquidación Laboral">
+        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+        <span class="nav-label">Nómina Electrónica</span>
+      </button>
+      <button class="tab-btn" data-tab="precios" title="Listas de Precios y Tarifarios">
+        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></span>
+        <span class="nav-label">Listas de Precios</span>
+      </button>
+      <button class="tab-btn" data-tab="importaciones" title="Importación Masiva Excel / CSV">
+        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span>
+        <span class="nav-label">Importación Masiva</span>
+      </button>
+      <button class="tab-btn" data-tab="admin" title="Administración, Multi-Empresa, Usuarios y Roles SoD">
+        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+        <span class="nav-label">Administración</span>
+      </button>
+    </div>
+  </nav>
+
+  <main class="main-container">
+    <!-- ============ PESTAÑA: DASHBOARD GERENCIAL ============ -->
+    <div id="tab-dashboard" class="tab-content active">
+      <section class="card">
+        <div class="card-header">
+          <h3>Indicadores Clave de Desempeño (KPIs Ejecutivos)</h3>
+        </div>
+        <div class="card-body">
+          <div class="kpi-grid">
+            <div class="kpi-card kpi-blue">
+              <div class="kpi-top">
+                <div class="kpi-label">Ventas del Mes</div>
+                <span class="kpi-badge-icon">📈</span>
+              </div>
+              <div class="kpi-value" id="kpi-ventas">COP 0</div>
+              <div class="kpi-sub">Facturación electrónica emitida</div>
+            </div>
+            <div class="kpi-card kpi-indigo">
+              <div class="kpi-top">
+                <div class="kpi-label">Cartera Pendiente</div>
+                <span class="kpi-badge-icon">💳</span>
+              </div>
+              <div class="kpi-value" id="kpi-cartera">COP 0</div>
+              <div class="kpi-sub">Cuentas por cobrar activas</div>
+            </div>
+            <div class="kpi-card kpi-danger">
+              <div class="kpi-top">
+                <div class="kpi-label">Cartera Vencida</div>
+                <span class="kpi-badge-icon">⚠️</span>
+              </div>
+              <div class="kpi-value" id="kpi-vencida">COP 0</div>
+              <div class="kpi-sub">En mora de recaudo</div>
+            </div>
+            <div class="kpi-card kpi-emerald">
+              <div class="kpi-top">
+                <div class="kpi-label">Ticket Promedio</div>
+                <span class="kpi-badge-icon">🧾</span>
+              </div>
+              <div class="kpi-value" id="kpi-ticket">COP 0</div>
+              <div class="kpi-sub">Promedio por operación</div>
+            </div>
+            <div class="kpi-card kpi-amber">
+              <div class="kpi-top">
+                <div class="kpi-label">Alertas de Stock</div>
+                <span class="kpi-badge-icon">📦</span>
+              </div>
+              <div class="kpi-value" id="kpi-stock">0</div>
+              <div class="kpi-sub">Ítems bajo nivel mínimo</div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="card mt-4">
+        <div class="card-header">
+          <h3>Alertas de Stock Mínimo en Bodegas</h3>
+        </div>
+        <div class="card-body">
+          <div class="table-container">
+            <table class="sap-table">
+              <thead>
+                <tr><th>Código</th><th>Nombre</th><th>Bodega</th><th>Saldo</th><th>Mínimo</th></tr>
+              </thead>
+              <tbody id="stock-alertas-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ============ PESTAÑA: FACTURACIÓN ELECTRÓNICA ============ -->
+    <div id="tab-facturacion" class="tab-content">
+      <!-- Panel Emisor / Resolución -->
+      <section class="card emisor-card">
+        <div class="card-header">
+          <h3>Datos de la Empresa Emisora & Resolución DIAN</h3>
+        </div>
+        <div class="card-body grid-4">
+          <div><strong>NIT:</strong> <span id="emp-nit-info">-</span></div>
+          <div><strong>Razón Social:</strong> <span id="emp-razon">-</span></div>
+          <div><strong>Resolución DIAN:</strong> <span id="emp-resolucion-info">-</span></div>
+          <div><strong>Rango Autorizado:</strong> <span id="emp-rango">-</span></div>
+        </div>
+      </section>
+
+      <div class="split-view">
+        <!-- Formulario de Emisión -->
+        <section class="card form-card">
+          <div class="card-header">
+            <h3>Nueva Factura de Venta</h3>
+          </div>
+          <div class="card-body">
+            <div class="form-group grid-2">
+              <div>
+                <label for="cliente-select">Adquirente / Cliente:</label>
+                <select id="cliente-select" class="form-control">
+                  <option value="">Seleccione un cliente...</option>
+                </select>
+              </div>
+              <div>
+                <label for="tipo-operacion">Tipo de Operación:</label>
+                <select id="tipo-operacion" class="form-control">
+                  <option value="01">10 - Estándar Nacional</option>
+                  <option value="02">11 - Factura de Exportación</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="table-container">
+              <table class="sap-table" id="tabla-lineas">
+                <thead>
+                  <tr>
+                    <th style="width: 25%;">Producto / Servicio</th>
+                    <th style="width: 12%;">Tipo</th>
+                    <th style="width: 10%;">Cant.</th>
+                    <th style="width: 18%;">Precio Unit. (COP)</th>
+                    <th style="width: 12%;">Tarifa IVA</th>
+                    <th style="width: 15%;">Subtotal (COP)</th>
+                    <th style="width: 8%;">Acción</th>
+                  </tr>
+                </thead>
+                <tbody id="lineas-tbody"></tbody>
+              </table>
+            </div>
+            <button class="btn btn-secondary mt-2" id="btn-add-linea">+ Agregar Línea</button>
+          </div>
+        </section>
+
+        <!-- Panel Liquidación Fiscal -->
+        <section class="card summary-card">
+          <div class="card-header">
+            <h3>Liquidación Tributaria (Estatuto Tributario)</h3>
+          </div>
+          <div class="card-body">
+            <div class="summary-line">
+              <span>Subtotal Bruto:</span>
+              <strong id="sum-subtotal">COP 0.00</strong>
+            </div>
+            <div class="summary-line text-muted">
+              <span>IVA 19% General:</span>
+              <span id="sum-iva19">COP 0.00</span>
+            </div>
+            <div class="summary-line text-muted">
+              <span>IVA 5% Reducido:</span>
+              <span id="sum-iva5">COP 0.00</span>
+            </div>
+            <div class="summary-line text-muted">
+              <span>Exento / IVA 0%:</span>
+              <span id="sum-iva0">COP 0.00</span>
+            </div>
+            <div class="summary-line border-sub">
+              <span>Total Impuesto IVA:</span>
+              <strong id="sum-total-iva">COP 0.00</strong>
+            </div>
+            <div class="summary-line retencion">
+              <span>(-) Retefuente (s/ Base):</span>
+              <span id="sum-retefuente">COP 0.00</span>
+            </div>
+            <div class="summary-line retencion">
+              <span>(-) ReteIVA (15% del IVA):</span>
+              <span id="sum-reteiva">COP 0.00</span>
+            </div>
+            <div class="summary-line retencion">
+              <span>(-) ReteICA (6.9x1000 s/ Base):</span>
+              <span id="sum-reteica">COP 0.00</span>
+            </div>
+            <div class="summary-line total-highlight">
+              <span>Neto a Pagar:</span>
+              <span id="sum-total">COP 0.00</span>
+            </div>
+
+            <button class="btn btn-primary btn-block btn-emitir" id="btn-emitir-dian">
+              ⚡ Emitir Factura Electrónica a DIAN
+            </button>
+          </div>
+        </section>
+      </div>
+
+      <!-- Resultado de Emisión -->
+      <section class="card resultado-card" id="resultado-dian" style="display: none;">
+        <div class="card-header bg-success-header">
+          <h3>Resultado de Transmisión DIAN - Validada Exitosamente</h3>
+        </div>
+        <div class="card-body">
+          <div class="dian-response-grid">
+            <div class="dian-info">
+              <p><strong>Consecutivo:</strong> <span id="res-consecutivo" class="badge badge-info">-</span></p>
+              <p><strong>Estado DIAN:</strong> <span class="badge badge-success" id="res-estado">Aceptada</span></p>
+              <p><strong>Respuesta:</strong> <span id="res-desc">Documento validado por la DIAN (Código 00)</span></p>
+              <p><strong>TrackId DIAN:</strong> <code id="res-trackid">-</code></p>
+              <p><strong>Fecha Validación:</strong> <span id="res-fecha">-</span></p>
+              <div class="cufe-box">
+                <strong>Código Único de Facturación Electrónica (CUFE SHA-384):</strong>
+                <div class="cufe-text" id="res-cufe">-</div>
+              </div>
+              <div class="actions mt-3" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <a href="#" target="_blank" class="btn btn-secondary" id="btn-descargar-xml">Descargar XML UBL 2.1</a>
+                <a href="#" target="_blank" class="btn btn-primary" id="btn-descargar-pdf">📄 Descargar PDF</a>
+                <a href="#" target="_blank" class="btn btn-info" id="btn-descargar-zip">📦 AttachedDoc (ZIP)</a>
+                <button type="button" class="btn btn-success" id="btn-enviar-correo-emision">✉️ Enviar por Correo</button>
+              </div>
+            </div>
+            <div class="qr-container">
+              <h4>Código QR Reglamentario</h4>
+              <div class="qr-placeholder" id="qr-box">
+                <div class="qr-code-graphic">QR DIAN</div>
+              </div>
+              <small id="res-qr-str" class="text-muted text-break">-</small>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Historial de Facturas -->
+      <section class="card mt-4">
+        <div class="card-header">
+          <h3>Historial de Facturas Electrónicas Emitidas</h3>
+        </div>
+        <div class="card-body">
+          <div class="filter-bar">
+            <div class="filter-group">
+              <label>Desde:</label>
+              <input type="date" id="f-filters-desde" class="form-control" onchange="loadHistorial()">
+            </div>
+            <div class="filter-group">
+              <label>Hasta:</label>
+              <input type="date" id="f-filters-hasta" class="form-control" onchange="loadHistorial()">
+            </div>
+            <div class="filter-group">
+              <label>Cliente:</label>
+              <input type="text" id="f-filters-cliente" class="form-control" onchange="loadHistorial()" placeholder="NIT">
+            </div>
+            <div class="filter-group">
+              <label>Estado Cartera:</label>
+              <select id="f-filters-estado" class="form-control" onchange="loadHistorial()">
+                <option value="">Todos</option>
+                <option value="PAGADA_TOTAL">Pagada Total</option>
+                <option value="PAGADA_PARCIAL">Pagada Parcial</option>
+                <option value="PENDIENTE">Pendiente</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>Página:</label>
+              <input type="number" id="f-filters-page" class="form-control" value="1" min="1" onchange="loadHistorial()">
+            </div>
+            <div class="filter-group">
+              <label>Total:</label>
+              <span id="f-filters-info">-</span>
+            </div>
+          </div>
+          <div class="table-container">
+            <table class="sap-table" id="tabla-historial">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Consecutivo</th>
+                  <th>Fecha/Hora</th>
+                  <th>Adquirente NIT</th>
+                  <th>Subtotal</th>
+                  <th>Total IVA</th>
+                  <th>Total a Pagar</th>
+                  <th>Estado DIAN</th>
+                  <th>TrackId</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="historial-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ============ PESTAÑA: NOTAS CRÉDITO DIAN ============ -->
+    <div id="tab-notas-credito" class="tab-content">
+      <!-- Formulario de Emisión -->
+      <section class="card">
+        <div class="card-header">
+          <h3>Emisión de Nota Crédito Electrónica (Tipo Operación 91)</h3>
+        </div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div>
+              <label for="nc-factura-select">Factura Padre (Requerido):</label>
+              <select id="nc-factura-select" class="form-control">
+                <option value="">Seleccione una factura...</option>
+              </select>
+            </div>
+            <div>
+              <label for="nc-motivo">Concepto DIAN (1 a 5):</label>
+              <select id="nc-motivo" class="form-control">
+                <option value="1">1 - Devolución parcial de bienes y/o no aceptación parcial del servicio</option>
+                <option value="2">2 - Anulación de factura electrónica</option>
+                <option value="3">3 - Rebaja o descuento parcial o total</option>
+                <option value="4">4 - Ajuste de precio</option>
+                <option value="5">5 - Otros</option>
+              </select>
+            </div>
+            <div>
+              <label for="nc-anulacion">Tipo de Anulación:</label>
+              <select id="nc-anulacion" class="form-control">
+                <option value="TOTAL">TOTAL</option>
+                <option value="PARCIAL">PARCIAL</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-grid">
+            <div>
+              <label for="nc-descripcion">Descripción del Motivo:</label>
+              <input type="text" id="nc-descripcion" class="form-control" placeholder="Detalle del ajuste o devolución">
+            </div>
+            <div>
+              <label for="nc-monto-parcial">Monto Parcial (solo si tipo PARCIAL):</label>
+              <input type="number" id="nc-monto-parcial" class="form-control" value="0" min="0">
+            </div>
+          </div>
+          <div id="nc-cude-preview" class="cude-preview" style="display:none;">
+            <strong>CUDE SHA-384 (Previo a emisión):</strong>
+            <div class="cude-value" id="nc-cude-value">-</div>
+          </div>
+          <button class="btn btn-primary mt-3" id="btn-emitir-nc">⚡ Emitir Nota Crédito</button>
+        </div>
+      </section>
+
+      <!-- Resultado NC -->
+      <section class="card" id="nc-resultado" style="display:none;">
+        <div class="card-header bg-success-header">
+          <h3>Nota Crédito Procesada - CUDE Validado</h3>
+        </div>
+        <div class="card-body">
+          <div class="nc-result-grid">
+            <div>
+              <p><strong>Consecutivo NC:</strong> <span class="badge badge-info" id="nc-res-consecutivo">-</span></p>
+              <p><strong>Motivo DIAN:</strong> <span id="nc-res-motivo">-</span></p>
+              <p><strong>Subtotal:</strong> <span id="nc-res-subtotal">-</span></p>
+              <p><strong>Total Nota:</strong> <strong id="nc-res-total">-</strong></p>
+              <p><strong>Nuevo Saldo Factura:</strong> <span id="nc-res-saldo">-</span></p>
+            </div>
+            <div class="cufe-box">
+              <strong>CUDE SHA-384:</strong>
+              <div class="cufe-text" id="nc-res-cude">-</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Listado NC -->
+      <section class="card">
+        <div class="card-header">
+          <h3>Notas Crédito Emitidas</h3>
+        </div>
+        <div class="card-body">
+          <div class="table-container">
+            <table class="sap-table" id="tabla-nc">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Consecutivo</th>
+                  <th>Fecha</th>
+                  <th>Factura Padre</th>
+                  <th>Cliente NIT</th>
+                  <th>Motivo</th>
+                  <th>Subtotal</th>
+                  <th>Total Nota</th>
+                  <th>Estado</th>
+                  <th>TrackId</th>
+                </tr>
+              </thead>
+              <tbody id="nc-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ============ PESTAÑA: NOTAS DÉBITO DIAN ============ -->
+    <div id="tab-notas-debito" class="tab-content">
+      <!-- Formulario de Emisión -->
+      <section class="card">
+        <div class="card-header">
+          <h3>Emisión de Nota Débito Electrónica (Tipo Operación 92)</h3>
+        </div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div>
+              <label for="nd-factura-select">Factura Padre (Requerido):</label>
+              <select id="nd-factura-select" class="form-control">
+                <option value="">Seleccione una factura...</option>
+              </select>
+            </div>
+            <div>
+              <label for="nd-concepto">Concepto DIAN (1 a 4):</label>
+              <select id="nd-concepto" class="form-control">
+                <option value="1">1 - Intereses</option>
+                <option value="2">2 - Gastos por cobrar</option>
+                <option value="3">3 - Cambio de valor</option>
+                <option value="4" selected>4 - Otros</option>
+              </select>
+            </div>
+            <div>
+              <label for="nd-descripcion">Descripción del Motivo:</label>
+              <input type="text" id="nd-descripcion" class="form-control" placeholder="Detalle del cobro o recargo">
+            </div>
+          </div>
+          <div class="form-grid">
+            <div>
+              <label for="nd-subtotal">Subtotal a Debitar (COP):</label>
+              <input type="number" id="nd-subtotal" class="form-control" value="0" min="0" step="100" oninput="actualizarTotalND()">
+            </div>
+            <div>
+              <label for="nd-tarifa-iva">Tarifa de IVA:</label>
+              <select id="nd-tarifa-iva" class="form-control" onchange="actualizarTotalND()">
+                <option value="IVA_19">IVA 19%</option>
+                <option value="IVA_5">IVA 5%</option>
+                <option value="IVA_0">IVA 0% / Exento</option>
+              </select>
+            </div>
+            <div>
+              <label>Total Estimado:</label>
+              <div id="nd-total-preview" style="font-size: 16px; font-weight: bold; margin-top: 6px; color: var(--sap-dark-blue);">COP 0.00</div>
+            </div>
+          </div>
+          <button class="btn btn-primary mt-3" id="btn-emitir-nd">⚡ Emitir Nota Débito</button>
+        </div>
+      </section>
+
+      <!-- Resultado ND -->
+      <section class="card" id="nd-resultado" style="display:none;">
+        <div class="card-header bg-success-header">
+          <h3>Nota Débito Procesada - CUDE Validado por DIAN</h3>
+        </div>
+        <div class="card-body">
+          <div class="nc-result-grid">
+            <div>
+              <p><strong>Consecutivo ND:</strong> <span class="badge badge-info" id="nd-res-consecutivo">-</span></p>
+              <p><strong>Concepto DIAN:</strong> <span id="nd-res-concepto">-</span></p>
+              <p><strong>Subtotal:</strong> <span id="nd-res-subtotal">-</span></p>
+              <p><strong>Total Nota:</strong> <strong id="nd-res-total">-</strong></p>
+              <p><strong>Nuevo Saldo Factura:</strong> <span id="nd-res-saldo">-</span></p>
+              <p><strong>Estado DIAN:</strong> <span class="badge badge-success" id="nd-res-estado">Aceptada</span></p>
+            </div>
+            <div class="cufe-box">
+              <strong>CUDE SHA-384:</strong>
+              <div class="cufe-text" id="nd-res-cude">-</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Listado ND -->
+      <section class="card">
+        <div class="card-header">
+          <h3>Notas Débito Emitidas</h3>
+        </div>
+        <div class="card-body">
+          <div class="table-container">
+            <table class="sap-table" id="tabla-nd">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Consecutivo</th>
+                  <th>Fecha</th>
+                  <th>Factura Padre</th>
+                  <th>Cliente NIT</th>
+                  <th>Concepto</th>
+                  <th>Subtotal</th>
+                  <th>Total Nota</th>
+                  <th>Estado</th>
+                  <th>TrackId</th>
+                </tr>
+              </thead>
+              <tbody id="nd-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ============ PESTAÑA: CARTERA Y RECAUDOS (CxC) ============ -->
+    <div id="tab-cartera" class="tab-content">
+      <!-- Semáforo de Edades -->
+      <section class="card">
+        <div class="card-header">
+          <h3>Edades de Cartera (Cartera por Cobrar)</h3>
+        </div>
+        <div class="card-body">
+          <div class="semaphore-grid" id="cartera-semaphore">
+            <div class="semaphore-item corriente">
+              <div class="semaphore-label">Corriente</div>
+              <div class="semaphore-amount" id="cartera-corriente">COP 0.00</div>
+            </div>
+            <div class="semaphore-item vencida-30">
+              <div class="semaphore-label">1 - 30 días</div>
+              <div class="semaphore-amount" id="cartera-v30">COP 0.00</div>
+            </div>
+            <div class="semaphore-item vencida-60">
+              <div class="semaphore-label">31 - 60 días</div>
+              <div class="semaphore-amount" id="cartera-v60">COP 0.00</div>
+            </div>
+            <div class="semaphore-item vencida-90">
+              <div class="semaphore-label">61 - 90 días</div>
+              <div class="semaphore-amount" id="cartera-v90">COP 0.00</div>
+            </div>
+            <div class="semaphore-item vencida-mas">
+              <div class="semaphore-label">Más de 90 días</div>
+              <div class="semaphore-amount" id="cartera-mas90">COP 0.00</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Facturas Pendientes -->
+      <section class="card">
+        <div class="card-header">
+          <h3>Facturas con Saldo Pendiente</h3>
+        </div>
+        <div class="card-body">
+          <div class="filter-bar">
+            <div class="filter-group">
+              <label>Cliente:</label>
+              <input type="text" id="cartera-filters-cliente" class="form-control" onchange="loadCartera()" placeholder="NIT">
+            </div>
+            <div class="filter-group">
+              <label>Desde:</label>
+              <input type="date" id="cartera-filters-desde" class="form-control" onchange="loadCartera()">
+            </div>
+            <div class="filter-group">
+              <label>Hasta:</label>
+              <input type="date" id="cartera-filters-hasta" class="form-control" onchange="loadCartera()">
+            </div>
+            <div class="filter-group">
+              <button class="btn btn-secondary" onclick="exportarCartera()">Exportar CSV</button>
+            </div>
+          </div>
+          <div class="table-container">
+            <table class="sap-table" id="tabla-cartera">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Consecutivo</th>
+                  <th>Fecha</th>
+                  <th>Vencimiento</th>
+                  <th>Cliente NIT</th>
+                  <th>Saldo Pendiente</th>
+                  <th>Estado</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody id="cartera-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ============ PESTAÑA: CONTABILIDAD ============ -->
+    <div id="tab-contabilidad" class="tab-content">
+      <!-- Balance de Prueba -->
+      <section class="card">
+        <div class="card-header">
+          <h3>Balance de Prueba (Partida Doble - PUC)</h3>
+        </div>
+        <div class="card-body">
+          <div class="balance-validation" id="balance-validation" style="display:none;">
+            <span class="badge" id="balance-badge">-</span>
+            <span id="balance-message">Validación de partida doble...</span>
+          </div>
+          <div class="table-container mt-2">
+            <table class="sap-table" id="tabla-balance">
+              <thead>
+                <tr>
+                  <th>Código Cuenta</th>
+                  <th>Descripción</th>
+                  <th>Naturaleza</th>
+                  <th>Categoría</th>
+                  <th>Débitos (COP)</th>
+                  <th>Créditos (COP)</th>
+                  <th>Saldo Final (COP)</th>
+                </tr>
+              </thead>
+              <tbody id="balance-tbody"></tbody>
+            </table>
+          </div>
+          <div class="balance-totals" id="balance-totals">
+            <div class="total-cell">
+              <strong>TOTAL DÉBITOS:</strong>
+              <span id="balance-total-debitos">COP 0.00</span>
+            </div>
+            <div class="total-cell">
+              <strong>TOTAL CRÉDITOS:</strong>
+              <span id="balance-total-creditos">COP 0.00</span>
+            </div>
+            <div class="total-cell">
+              <strong>DIFERENCIA:</strong>
+              <span id="balance-diferencia">COP 0.00</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Cuentas PUC -->
+      <section class="card">
+        <div class="card-header">
+          <h3>Cuentas del Plan Único de Contabilidad (PUC)</h3>
+        </div>
+        <div class="card-body">
+          <div class="table-container">
+            <table class="sap-table" id="tabla-cuentas">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Descripción</th>
+                  <th>Naturaleza</th>
+                  <th>Categoría</th>
+                </tr>
+              </thead>
+              <tbody id="cuentas-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Libro Diario (Asientos) -->
+      <section class="card">
+        <div class="card-header">
+          <h3>Libro Diario (Asientos)</h3>
+        </div>
+        <div class="card-body">
+          <div class="filter-bar">
+            <div class="filter-group">
+              <label>Página:</label>
+              <input type="number" id="asientos-page" class="form-control" value="1" min="1" onchange="loadAsientos()">
+            </div>
+            <div class="filter-group">
+              <button class="btn btn-secondary" onclick="exportarAsientos()">Exportar CSV</button>
+            </div>
+          </div>
+          <div class="table-container">
+            <table class="sap-table" id="tabla-asientos">
+              <thead>
+                <tr><th>N° Comprobante</th><th>Fecha</th><th>Concepto</th><th>Movimientos</th></tr>
+              </thead>
+              <tbody id="asientos-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Kárdex de Inventario -->
+      <section class="card mt-4">
+        <div class="card-header">
+          <h3>Kárdex de Inventario</h3>
+        </div>
+        <div class="card-body">
+          <div class="filter-bar">
+            <div class="filter-group">
+              <button class="btn btn-secondary" onclick="exportarKardex()">Exportar CSV</button>
+            </div>
+          </div>
+          <div class="table-container">
+            <table class="sap-table" id="tabla-kardex">
+              <thead>
+                <tr><th>Fecha</th><th>Producto</th><th>Bodega</th><th>Tipo</th><th>Entrada</th><th>Salida</th><th>Saldo</th></tr>
+              </thead>
+              <tbody id="kardex-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ============ PESTAÑA: DOCUMENTO SOPORTE ============ -->
+    <div id="tab-documento-soporte" class="tab-content">
+      <!-- Formulario Emisión -->
+      <section class="card">
+        <div class="card-header">
+          <h3>Emisión de Documento Soporte (CUDS)</h3>
+        </div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div>
+              <label for="ds-prefijo">Prefijo:</label>
+              <input type="text" id="ds-prefijo" class="form-control" value="DS">
+            </div>
+            <div>
+              <label for="ds-proveedor-nit">Proveedor NIT (Requerido):</label>
+              <input type="text" id="ds-proveedor-nit" class="form-control" placeholder="Ej: 123456789">
+            </div>
+            <div>
+              <label for="ds-proveedor-nombre">Razón Social Proveedor:</label>
+              <input type="text" id="ds-proveedor-nombre" class="form-control" placeholder="Nombre del proveedor">
+            </div>
+          </div>
+          <div class="form-grid">
+            <div>
+              <label for="ds-tipo-doc">Tipo Documento:</label>
+              <input type="text" id="ds-tipo-doc" class="form-control" value="NIT">
+            </div>
+            <div>
+              <label for="ds-retefuente">Tarifa Retefuente:</label>
+              <input type="number" id="ds-retefuente" class="form-control" value="0.035" step="0.001">
+            </div>
+            <div>
+              <label for="ds-reteica">Tarifa ReteICA:</label>
+              <input type="number" id="ds-reteica" class="form-control" value="0.0069" step="0.0001">
+            </div>
+          </div>
+          <div class="table-container">
+            <table class="sap-table" id="tabla-ds-lineas">
+              <thead>
+                <tr>
+                  <th>Producto / Concepto</th>
+                  <th>Descripción</th>
+                  <th>Subtotal (COP)</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody id="ds-lineas-tbody"></tbody>
+            </table>
+          </div>
+          <button class="btn btn-secondary mt-2" id="btn-add-ds-linea">+ Agregar Línea</button>
+          <button class="btn btn-primary mt-3" id="btn-emitir-ds">⚡ Emitir Documento Soporte</button>
+        </div>
+      </section>
+
+      <!-- Resultado DS -->
+      <section class="card" id="ds-resultado" style="display:none;">
+        <div class="card-header bg-success-header">
+          <h3>Documento Soporte Generado</h3>
+        </div>
+        <div class="card-body">
+          <div class="ds-result-grid">
+            <div>
+              <p><strong>Consecutivo:</strong> <span class="badge badge-info" id="ds-res-consecutivo">-</span></p>
+              <p><strong>Proveedor NIT:</strong> <span id="ds-res-proveedor">-</span></p>
+              <p><strong>Subtotal:</strong> <span id="ds-res-subtotal">-</span></p>
+              <p><strong>(-) Retefuente:</strong> <span id="ds-res-retefuente">-</span></p>
+              <p><strong>(-) ReteICA:</strong> <span id="ds-res-reteica">-</span></p>
+              <p><strong>Total Documento:</strong> <strong id="ds-res-total">-</strong></p>
+            </div>
+            <div class="cufe-box">
+              <strong>CUDS SHA-384:</strong>
+              <div class="cufe-text" id="ds-res-cuds">-</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Listado DS -->
+      <section class="card">
+        <div class="card-header">
+          <h3>Documentos Soporte Emitidos</h3>
+        </div>
+        <div class="card-body">
+          <div class="table-container">
+            <table class="sap-table" id="tabla-ds-lista">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Consecutivo</th>
+                  <th>Fecha</th>
+                  <th>Proveedor NIT</th>
+                  <th>Proveedor</th>
+                  <th>Subtotal</th>
+                  <th>Rfefuente</th>
+                  <th>RteICA</th>
+                  <th>Total</th>
+                  <th>CUDS</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody id="ds-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  <!-- Modal Recaudo -->
+  <div id="modal-recaudo" class="modal-overlay" style="display:none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Recibo de Caja (RC)</h3>
+        <button class="modal-close" id="btn-close-recaudo">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Factura:</label>
+          <div class="modal-factura-info" id="recaudo-factura-info">-</div>
+        </div>
+        <div class="form-group">
+          <label for="recaudo-monto">Monto a Recaudar (COP):</label>
+          <input type="number" id="recaudo-monto" class="form-control" min="0" step="100">
+        </div>
+        <div class="form-group">
+          <label for="recaudo-medio">Medio de Pago:</label>
+          <select id="recaudo-medio" class="form-control">
+            <option value="EFECTIVO">Efectivo</option>
+            <option value="TRANSFERENCIA">Transferencia</option>
+            <option value="CHEQUE">Cheque</option>
+            <option value="OCT">Otra Forma de Cobro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="recaudo-referencia">Referencia (Opcional):</label>
+          <input type="text" id="recaudo-referencia" class="form-control" placeholder="No. de referencia del pago">
+        </div>
+        <div class="form-group">
+          <label for="recaudo-observaciones">Observaciones (Opcional):</label>
+          <textarea id="recaudo-observaciones" class="form-control" rows="2" placeholder="Notas del recaudo"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-cancel-recaudo">Cancelar</button>
+        <button class="btn btn-primary" id="btn-confirmar-recaudo">Confirmar Recaudo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Enviar Factura por Correo -->
+  <div id="modal-email-factura" class="modal-overlay" style="display:none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>✉️ Enviar Factura por Correo Electrónico</h3>
+        <button class="modal-close" id="btn-close-email-modal" onclick="cerrarModalEmail()">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="email-factura-id">
+        <div class="form-group">
+          <label>Documento:</label>
+          <div class="modal-factura-info" id="email-factura-info" style="font-weight: 600; color: var(--sap-dark-blue);">-</div>
+        </div>
+        <div class="form-group">
+          <label for="email-factura-destinatario">Correo del Destinatario (Cliente):</label>
+          <input type="email" id="email-factura-destinatario" class="form-control" placeholder="cliente@empresa.com" required>
+        </div>
+        <div class="form-group">
+          <label for="email-factura-asunto">Asunto:</label>
+          <input type="text" id="email-factura-asunto" class="form-control" placeholder="Factura Electrónica de Venta">
+        </div>
+        <p class="text-muted" style="font-size: 12px; margin-top: 8px;">
+          📎 Se adjuntará automáticamente la <strong>Representación Gráfica (PDF)</strong> y el contenedor reglamentario <strong>AttachedDocument (ZIP)</strong> con el XML firmado y la validación DIAN.
+        </p>
+        <div id="email-envio-resultado" class="result-box" style="display:none; margin-top: 10px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="cerrarModalEmail()">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btn-confirmar-envio-email" onclick="enviarFacturaEmailConfirm()">Enviar Documento</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PESTAÑA: NÓMINA ============ -->
+  <div id="tab-nomina" class="tab-content">
+    <!-- Summary Cards -->
+    <div class="nomina-summary">
+      <div class="nomina-summary-card">
+        <div class="nomina-summary-label">Empleados Activos</div>
+        <div class="nomina-summary-value" id="nomina-summary-actives">0</div>
+      </div>
+      <div class="nomina-summary-card">
+        <div class="nomina-summary-label">Nóminas Pendientes</div>
+        <div class="nomina-summary-value" id="nomina-summary-pending">0</div>
+      </div>
+      <div class="nomina-summary-card">
+        <div class="nomina-summary-label">Total Pendiente (COP)</div>
+        <div class="nomina-summary-value" id="nomina-summary-total">0</div>
+      </div>
+      <div class="nomina-summary-card">
+        <div class="nomina-summary-label">Costo Total Empleador</div>
+        <div class="nomina-summary-value" id="nomina-summary-costo">0</div>
+      </div>
+    </div>
+
+    <!-- Sub-tabs -->
+    <div class="nomina-subtabs">
+      <button class="nomina-subtab active" data-nomina-tab="empleados">Empleados</button>
+      <button class="nomina-subtab" data-nomina-tab="procesar">Procesar Nómina</button>
+      <button class="nomina-subtab" data-nomina-tab="historial">Historial</button>
+    </div>
+
+    <!-- Sub-tab: Empleados -->
+    <div id="nomina-sub-empleados" class="nomina-subtab-content">
+      <section class="card">
+        <div class="card-header">
+          <h3>Registro de Empleados</h3>
+          <button class="btn btn-primary btn-sm" id="btn-toggle-form-empleado">+ Nuevo Empleado</button>
+        </div>
+        <div class="card-body">
+          <form id="form-empleado" style="display:none;">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Documento</label>
+                <input type="text" id="empleado-documento" class="form-control" required>
+              </div>
+              <div class="form-group">
+                <label>Nombres</label>
+                <input type="text" id="emp-nombres" class="form-control" required>
+              </div>
+              <div class="form-group">
+                <label>Apellidos</label>
+                <input type="text" id="emp-apellidos" class="form-control" required>
+              </div>
+              <div class="form-group">
+                <label>Salario Base (COP)</label>
+                <input type="number" id="emp-salario" class="form-control" required min="0">
+              </div>
+              <div class="form-group">
+                <label>Aux. Transporte (COP)</label>
+                <input type="number" id="emp-auxilio" class="form-control" value="149095">
+              </div>
+            </div>
+            <div class="form-row">
+              <button type="submit" id="btn-guardar-empleado" class="btn btn-primary">Guardar Empleado</button>
+            </div>
+          </form>
+          <div class="nomina-search-bar">
+            <input type="text" id="emp-search" class="form-control" placeholder="Buscar por nombre, documento o apellidos...">
+          </div>
+          <table class="table table-responsive" id="tabla-empleados">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Documento</th>
+                <th>Nombre Completo</th>
+                <th class="text-right">Salario Base</th>
+                <th class="text-right">Aux. Transporte</th>
+                <th class="text-right">Neto Estimado</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- Sub-tab: Procesar Nómina -->
+    <div id="nomina-sub-procesar" class="nomina-subtab-content" style="display:none;">
+      <section class="card">
+        <div class="card-header">
+          <h3>Procesar Nómina Mensual</h3>
+        </div>
+        <div class="card-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Periodo Inicio</label>
+              <input type="date" id="nomina-periodo-inicio" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label>Periodo Fin</label>
+              <input type="date" id="nomina-periodo-fin" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label>Medio de Pago</label>
+              <select id="nomina-medio-pago" class="form-control">
+                <option value="EFECTIVO">Efectivo</option>
+                <option value="TRANSFERENCIA">Transferencia</option>
+              </select>
+            </div>
+          </div>
+          <div class="nomina-process-actions">
+            <button class="btn btn-primary" id="btn-liquidar-todos">Liquidar Todos</button>
+            <button class="btn btn-success" id="btn-emitir-todos">Emitir + Pagar Todos</button>
+          </div>
+          <hr style="margin:20px 0;border:none;border-top:1px solid var(--sap-border);">
+          <h4 style="margin-bottom:12px;">Procesar un empleado</h4>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="nomina-empleado-select">Empleado</label>
+              <select id="nomina-empleado-select" class="form-control">
+                <option value="">Seleccione un empleado...</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>&nbsp;</label>
+              <div class="nomina-process-actions">
+                <button class="btn btn-primary" id="btn-liquidar-nomina">Liquidar Empleado</button>
+                <button class="btn btn-success" id="btn-emitir-nomina">Emitir Nómina</button>
+              </div>
+            </div>
+          </div>
+          <div id="resultado-liquidacion" class="result-box" style="display:none;"></div>
+          <div id="resultado-nomina" class="result-box" style="display:none;"></div>
+          <div id="resultado-pago-masivo" class="result-box" style="display:none;"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Sub-tab: Historial -->
+    <div id="nomina-sub-historial" class="nomina-subtab-content" style="display:none;">
+      <section class="card">
+        <div class="card-header">
+          <h3>Historial de Nominas</h3>
+          <div class="card-header-actions">
+            <select id="nomina-historial-filtro" class="form-control form-control-sm">
+              <option value="">Todos</option>
+              <option value="PENDIENTE">Pendientes</option>
+              <option value="PAGADA">Pagadas</option>
+            </select>
+            <button class="btn btn-sm btn-success" id="btn-pagar-pendientes">Pagar Todos Pendientes</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <table class="table table-responsive" id="tabla-nominas">
+            <thead>
+              <tr>
+                <th><input type="checkbox" id="nomina-select-all"></th>
+                <th>Consecutivo</th>
+                <th>Periodo</th>
+                <th>Empleado</th>
+                <th class="text-right">Devengado</th>
+                <th class="text-right">Deducciones</th>
+                <th class="text-right">Neto Pagar</th>
+                <th>Estado DIAN</th>
+                <th>Estado Pago</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <div id="resultado-pago-nomina" class="result-box" style="display:none;"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ============ PESTAÑA: IMPORTACIONES MASIVAS ============ -->
+  <div id="tab-importaciones" class="tab-content">
+    <section class="card">
+      <div class="card-header">
+        <h3>Importación Masiva de Datos</h3>
+        <p class="subtitle">Importe grandes volúmenes de datos mediante archivos CSV o Excel.</p>
+      </div>
+      <div class="card-body">
+        <div class="form-group">
+          <label for="import-tipo">Tipo de Importación:</label>
+          <select id="import-tipo" class="form-control" onchange="updateImportUI()">
+            <option value="">Seleccione un tipo...</option>
+            <option value="facturas">Facturas de Venta</option>
+            <option value="saldos_iniciales">Saldos Iniciales</option>
+            <option value="toma_inventario">Toma de Inventario</option>
+          </select>
+        </div>
+
+        <div class="import-actions">
+          <button class="btn btn-secondary" id="btn-download-template">📥 Descargar Plantilla</button>
+          <div class="file-input-wrapper">
+            <input type="file" id="import-file" accept=".csv,.xlsx,.xls" style="display:none;">
+            <label for="import-file" class="btn btn-secondary">Seleccionar Archivo</label>
+            <span id="selected-file-name" class="file-name"></span>
+          </div>
+          <button class="btn btn-primary" id="btn-import" onclick="startImport()" disabled>Importar</button>
+        </div>
+
+        <div id="import-progress" class="import-progress" style="display:none;">
+          <div class="progress-bar">
+            <div id="progress-fill" class="progress-fill" style="width: 0%;"></div>
+          </div>
+          <span id="progress-text">0%</span>
+        </div>
+
+        <div id="import-results" class="import-results" style="display:none;"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ PESTAÑA: ADMINISTRACIÓN DEL SISTEMA ============ -->
+  <div id="tab-admin" class="tab-content">
+    <section class="card admin-hero-card">
+      <div class="admin-hero-top">
+        <div>
+          <h3>Centro de Gobierno & Administración Corporativa</h3>
+          <p class="subtitle">Gestión multi-empresa (Holding), usuarios, perfiles RBAC con control SoD y seguridad 2FA.</p>
+        </div>
+        <div class="admin-subnav" id="admin-subnav">
+          <button type="button" class="admin-subnav-btn active" data-admin-filter="all">Vista Completa</button>
+          <button type="button" class="admin-subnav-btn" data-admin-filter="empresas">🏢 Empresas & DIAN</button>
+          <button type="button" class="admin-subnav-btn" data-admin-filter="usuarios">👥 Usuarios & Accesos</button>
+          <button type="button" class="admin-subnav-btn" data-admin-filter="roles">🛡️ Roles & SoD</button>
+          <button type="button" class="admin-subnav-btn" data-admin-filter="seguridad">🔐 Seguridad 2FA</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Empresas -->
+    <section class="card" data-admin-section="empresas">
+      <div class="card-header-inline">
+        <h3>Empresas Registradas (Multi-Tenant & Identidad Visual)</h3>
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn btn-secondary" onclick="openActiveCompanyBranding()">🎨 Personalizar Empresa Activa</button>
+          <button class="btn btn-primary" id="btn-new-empresa">+ Nueva Empresa</button>
+        </div>
+      </div>
+      <div class="table-container mt-2">
+        <table class="sap-table" id="tabla-empresas">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>NIT</th>
+              <th>Razón Social</th>
+              <th>Marca & Tema</th>
+              <th>Usuarios</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-empresas"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- New/Edit Empresa Form -->
+    <section class="card" id="card-empresa-form" data-admin-section="empresas" style="display:none;">
+      <h3 id="empresa-form-title">Nueva Empresa</h3>
+      <form id="form-empresa">
+        <input type="hidden" id="emp-id">
+        <input type="hidden" id="emp-logo-data">
+        <input type="hidden" id="emp-fuente-data">
+        <div class="form-row">
+          <div class="form-group">
+            <label>NIT</label>
+            <input type="text" id="empresa-nit" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>DV</label>
+            <input type="text" id="emp-dv" class="form-control">
+          </div>
+          <div class="form-group">
+            <label>Razón Social (Nombre de la Empresa)</label>
+            <input type="text" id="emp-razon-social" class="form-control" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Dirección</label>
+            <input type="text" id="emp-direccion" class="form-control">
+          </div>
+          <div class="form-group">
+            <label>Municipio</label>
+            <input type="text" id="emp-municipio" class="form-control">
+          </div>
+          <div class="form-group">
+            <label>Departamento</label>
+            <input type="text" id="emp-departamento" class="form-control">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Prefijo Resolución</label>
+            <input type="text" id="emp-prefijo" class="form-control">
+          </div>
+          <div class="form-group">
+            <label>Resolución DIAN</label>
+            <input type="text" id="empresa-resolucion" class="form-control">
+          </div>
+          <div class="form-group">
+            <label>Fecha Resolución</label>
+            <input type="date" id="emp-fecha-resolucion" class="form-control">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Clave Técnica</label>
+            <input type="text" id="emp-clave" class="form-control">
+          </div>
+          <div class="form-group">
+            <label>Tipo Ambiente</label>
+            <select id="emp-ambiente" class="form-control">
+              <option value="1">Producción en Habilitación (1)</option>
+              <option value="2" selected>Producción en Operación (2)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>URL DIAN</label>
+            <input type="text" id="emp-url-dian" class="form-control" placeholder="http://localhost:8080 (mock) o URL real DIAN">
+          </div>
+        </div>
+
+        <!-- Panel de Identidad Visual (Logo, Colores y Fuentes por Empresa) -->
+        <div class="branding-studio-panel">
+          <div class="branding-studio-header">
+            <div>
+              <h4>🎨 Identidad Visual, Logo, Colores y Tipografía de la Empresa</h4>
+              <p class="subtitle">Cada empresa registrada puede tener su propio logo, sigla, paleta de colores y fuente tipográfica.</p>
+            </div>
+            <div class="branding-presets">
+              <span class="preset-label">Temas rápidos:</span>
+              <button type="button" class="btn-preset" onclick="applyBrandingPreset('#2563eb','#1d4ed8','#0f172a','#f1f5f9')" title="Azul Corporativo"><span style="background:#2563eb"></span>Azul</button>
+              <button type="button" class="btn-preset" onclick="applyBrandingPreset('#059669','#047857','#064e3b','#f0fdf4')" title="Esmeralda Financiero"><span style="background:#059669"></span>Esmeralda</button>
+              <button type="button" class="btn-preset" onclick="applyBrandingPreset('#4f46e5','#4338ca','#1e1b4b','#f5f3ff')" title="Índigo Real"><span style="background:#4f46e5"></span>Índigo</button>
+              <button type="button" class="btn-preset" onclick="applyBrandingPreset('#be123c','#9f1239','#1f1218','#fff1f2')" title="Borgoña Ejecutivo"><span style="background:#be123c"></span>Borgoña</button>
+              <button type="button" class="btn-preset" onclick="applyBrandingPreset('#334155','#1e293b','#090d16','#f8fafc')" title="Grafito Ejecutivo"><span style="background:#334155"></span>Grafito</button>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="emp-nombre-marca">Sigla / Nombre de Marca en Cabecera</label>
+              <input type="text" id="emp-nombre-marca" class="form-control" placeholder="Ej: MI EMPRESA o siglas (máx. 14 caract.)" maxlength="20">
+            </div>
+            <div class="form-group">
+              <label for="emp-logo-file">Logo de la Empresa (PNG, SVG, JPG, WebP)</label>
+              <div style="display:flex; align-items:center; gap:10px;">
+                <input type="file" id="emp-logo-file" class="form-control" accept=".png,.jpg,.jpeg,.svg,.webp,image/*">
+                <div id="emp-logo-preview" class="emp-logo-preview" title="Vista previa del logo">ERP</div>
+                <button type="button" class="btn btn-sm btn-secondary" id="btn-clear-emp-logo" onclick="clearEmpresaLogo()">Quitar</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="emp-color-primario">Color Primario (Botones & Acentos)</label>
+              <div class="color-picker-wrap">
+                <input type="color" id="emp-color-primario" value="#2563eb">
+                <input type="text" id="emp-color-primario-hex" class="form-control" value="#2563eb" maxlength="7">
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="emp-color-secundario">Color Secundario (Hover & Énfasis)</label>
+              <div class="color-picker-wrap">
+                <input type="color" id="emp-color-secundario" value="#1d4ed8">
+                <input type="text" id="emp-color-secundario-hex" class="form-control" value="#1d4ed8" maxlength="7">
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="emp-color-sidebar">Color Menú Lateral & Barra Superior</label>
+              <div class="color-picker-wrap">
+                <input type="color" id="emp-color-sidebar" value="#0f172a">
+                <input type="text" id="emp-color-sidebar-hex" class="form-control" value="#0f172a" maxlength="7">
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="emp-color-fondo">Color Fondo Área de Trabajo</label>
+              <div class="color-picker-wrap">
+                <input type="color" id="emp-color-fondo" value="#f1f5f9">
+                <input type="text" id="emp-color-fondo-hex" class="form-control" value="#f1f5f9" maxlength="7">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="emp-fuente-nombre">Tipografía de la Plataforma</label>
+              <select id="emp-fuente-nombre" class="form-control">
+                <option value="Inter">Inter (Corporativa Moderna - Predeterminada)</option>
+                <option value="Roboto">Roboto (Clásica Android / Google)</option>
+                <option value="Montserrat">Montserrat (Geométrica Ejecutiva)</option>
+                <option value="Poppins">Poppins (Amigable & Limpia)</option>
+                <option value="Georgia">Georgia (Editorial / Serif Clásica)</option>
+                <option value="System">Sistema Operativo (Nativa)</option>
+                <option value="Custom">Fuente Propia Subida (.ttf / .otf / .woff2)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="emp-fuente-file">Subir Fuente Propia (.ttf, .otf, .woff, .woff2)</label>
+              <div style="display:flex; align-items:center; gap:10px;">
+                <input type="file" id="emp-fuente-file" class="form-control" accept=".ttf,.otf,.woff,.woff2">
+                <span id="emp-fuente-status" class="badge badge-muted" style="white-space:nowrap;">Sin archivo</span>
+                <button type="button" class="btn btn-sm btn-secondary" onclick="clearEmpresaFont()">Quitar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row" style="margin-top: 16px;">
+          <button type="submit" class="btn btn-primary">💾 Guardar Empresa y Aplicar Tema</button>
+          <button type="button" class="btn btn-secondary" id="btn-cancel-empresa">Cancelar</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Usuarios de Sistema -->
+    <section class="card" data-admin-section="usuarios">
+      <div class="card-header-inline">
+        <h3>Usuarios de Sistema</h3>
+        <button class="btn btn-primary" id="btn-new-usuario">+ Nuevo Usuario</button>
+      </div>
+      <div class="table-container mt-2">
+        <table class="sap-table" id="tabla-usuarios">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Email</th>
+              <th>Nombre</th>
+              <th>Rol</th>
+              <th>Empresa</th>
+              <th>Activo</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-usuarios"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- New/Edit Usuario Form -->
+    <section class="card" id="card-usuario-form" data-admin-section="usuarios" style="display:none;">
+      <h3 id="usuario-form-title">Nuevo Usuario</h3>
+      <form id="form-usuario">
+        <input type="hidden" id="usr-id">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="usr-email" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>Nombre</label>
+            <input type="text" id="usr-nombre" class="form-control" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Contraseña</label>
+            <input type="password" id="usr-password" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>Rol</label>
+            <select id="usr-rol" class="form-control"></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Empresa (null = sistema)</label>
+            <select id="usr-empresa" class="form-control">
+              <option value="">— Sistema (sin empresa) —</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Activo</label>
+            <select id="usr-activo" class="form-control">
+              <option value="1">Sí</option>
+              <option value="0">No</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <button type="submit" class="btn btn-primary">Guardar</button>
+          <button type="button" class="btn btn-secondary" id="btn-cancel-usuario">Cancelar</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Roles -->
+    <section class="card" data-admin-section="roles">
+      <div class="card-header-inline">
+        <h3>Perfiles de Rol & Matriz de Permisos (RBAC / SoD)</h3>
+        <button class="btn btn-primary" id="btn-new-rol">+ Nuevo Rol</button>
+      </div>
+      <div class="table-container mt-2">
+        <table class="sap-table" id="tabla-roles">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nombre</th>
+              <th>Descripción</th>
+              <th>Tipo</th>
+              <th>Activo</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-roles"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Role Permissions Modal -->
+    <div id="permisos-modal" class="modal-overlay" style="display:none;">
+      <div class="modal-content" style="width: 680px; max-height: 80vh; overflow-y: auto;">
+        <div class="modal-header">
+          <h3 id="permisos-modal-title">Permisos del Rol</h3>
+          <button class="modal-close" onclick="closePermisosModal()">×</button>
+        </div>
+        <div class="modal-body">
+          <div id="sod-warnings-container" style="display:none; margin-bottom: 14px; padding: 12px 14px; background: #fffaf0; border: 1px solid #fbd38d; border-radius: 6px; color: #744210;">
+            <div style="font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+              <span>⚠️ Advertencia de Segregación de Funciones (SoD)</span>
+            </div>
+            <div id="sod-warnings-list" style="font-size: 12px; line-height: 1.5;"></div>
+          </div>
+          <div class="permisos-toolbar">
+            <p class="text-muted">Seleccione los permisos que tendrá este rol:</p>
+            <div class="permisos-toolbar-actions">
+              <button class="btn btn-sm btn-secondary" onclick="toggleAllPermisos(true)">Seleccionar todos</button>
+              <button class="btn btn-sm btn-secondary" onclick="toggleAllPermisos(false)">DesSeleccionar todos</button>
+            </div>
+          </div>
+          <div id="permisos-grid" class="permisos-grid"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closePermisosModal()">Cancelar</button>
+          <button class="btn btn-primary" id="btn-save-permisos">Guardar Permisos</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- New/Edit Rol Form -->
+    <section class="card" id="card-rol-form" data-admin-section="roles" style="display:none;">
+      <h3 id="rol-form-title">Nuevo Rol</h3>
+      <form id="form-rol">
+        <input type="hidden" id="rol-id">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nombre</label>
+            <input type="text" id="rol-nombre" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>Descripción</label>
+            <input type="text" id="rol-descripcion" class="form-control">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Empresa (null = global)</label>
+            <select id="rol-empresa" class="form-control">
+              <option value="">— Global (todas) —</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Activo</label>
+            <select id="rol-activo" class="form-control">
+              <option value="1">Sí</option>
+              <option value="0">No</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <button type="submit" class="btn btn-primary">Guardar</button>
+          <button type="button" class="btn btn-secondary" id="btn-cancel-rol">Cancelar</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- 2FA / TOTP Security -->
+    <section class="card" id="card-admin-2fa" data-admin-section="seguridad" style="margin-top: 20px;">
+      <div class="card-header">
+        <h3>Seguridad: Autenticación Multifactor (2FA / TOTP)</h3>
+      </div>
+      <div class="card-body">
+        <div id="2fa-status-banner" style="margin-bottom: 15px;">
+          <span class="badge badge-secondary" id="2fa-badge-status">Estado 2FA: Verificando...</span>
+        </div>
+        <div id="2fa-setup-panel" style="display:none; padding: 15px; border: 1px dashed #0056b3; border-radius: 6px; margin-bottom: 15px; background: #fdfdfd;">
+          <p><strong>Paso 1:</strong> Ingrese la clave secreta en su aplicación de autenticación (Google Authenticator o Authy):</p>
+          <div style="background: #eef2f7; padding: 10px; font-family: monospace; font-size: 1.1em; letter-spacing: 2px; word-break: break-all; margin: 10px 0;" id="2fa-secret-display">-</div>
+          <p><strong>Paso 2:</strong> Ingrese el código de 6 dígitos generado:</p>
+          <div class="form-row">
+            <div class="form-group" style="max-width: 200px;">
+              <input type="text" id="2fa-verify-code" class="form-control" placeholder="123456" maxlength="6">
+            </div>
+            <button class="btn btn-primary" id="btn-confirm-enable-2fa">Activar 2FA</button>
+            <button class="btn btn-secondary" id="btn-cancel-enable-2fa">Cancelar</button>
+          </div>
+        </div>
+        <div>
+          <button class="btn btn-primary" id="btn-init-2fa">Configurar 2FA</button>
+          <button class="btn btn-danger" id="btn-disable-2fa" style="display:none;">Desactivar 2FA</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Asignación Multi-Empresa de Usuarios -->
+    <section class="card" id="card-usuario-empresas-admin" data-admin-section="usuarios" style="margin-top: 20px;">
+      <div class="card-header">
+        <h3>Asignación de Usuarios a Empresas (Multi-Tenant)</h3>
+      </div>
+      <div class="card-body">
+        <p class="subtitle" style="margin-bottom: 15px; color: #718096;">Permite que un usuario tenga acceso a una o más empresas con roles diferenciados (Holding / Outsourcing contable).</p>
+        <div class="form-row" style="background: #f7fafc; padding: 15px; border-radius: 6px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
+          <div class="form-group" style="flex: 1;">
+            <label for="asig-ue-usuario">Usuario del Sistema:</label>
+            <select id="asig-ue-usuario" class="form-control"></select>
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label for="asig-ue-empresa">Empresa:</label>
+            <select id="asig-ue-empresa" class="form-control"></select>
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label for="asig-ue-rol">Rol en Empresa:</label>
+            <select id="asig-ue-rol" class="form-control">
+              <option value="ADMIN_EMPRESA">Administrador de Empresa</option>
+              <option value="CONTADOR">Contador</option>
+              <option value="TESORERO">Tesorero</option>
+              <option value="VENDEDOR">Vendedor</option>
+              <option value="CAJERO_POS">Cajero POS</option>
+              <option value="ALMACENISTA">Almacenista</option>
+              <option value="RECURSOS_HUMANOS">Recursos Humanos</option>
+            </select>
+          </div>
+          <div class="form-group" style="align-self: flex-end;">
+            <button class="btn btn-primary" id="btn-asignar-usuario-empresa">+ Asignar Acceso</button>
+          </div>
+        </div>
+        <div class="table-container">
+          <table class="sap-table" id="tabla-usuario-empresas">
+            <thead>
+              <tr>
+                <th>Usuario</th>
+                <th>Email</th>
+                <th>Rol Global</th>
+                <th>Empresa</th>
+                <th>NIT</th>
+                <th>Rol en Empresa</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-usuario-empresas"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ PESTAÑA: CICLO COMERCIAL (VENTAS) ============ -->
+  <div id="tab-ciclo-comercial" class="tab-content">
+    <section class="card">
+      <div class="card-header">
+        <h3>Nueva Cotización Comercial</h3>
+      </div>
+      <div class="card-body">
+        <form id="form-cotizacion">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="cot-cliente">Cliente (NIT):</label>
+              <select id="cot-cliente" class="form-control" required></select>
+            </div>
+            <div class="form-group">
+              <label for="cot-vencimiento">Fecha Vencimiento:</label>
+              <input type="date" id="cot-vencimiento" class="form-control" required>
+            </div>
+            <div class="form-group" style="max-width: 130px;">
+              <label for="cot-descuento">Descuento (%):</label>
+              <input type="number" id="cot-descuento" class="form-control" value="0" min="0" max="100" step="0.5" title="Descuentos > 15% requieren aprobación de gerencia">
+            </div>
+            <div class="form-group">
+              <label for="cot-observaciones">Observaciones:</label>
+              <input type="text" id="cot-observaciones" class="form-control" placeholder="Condiciones comerciales...">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="cot-prod">Producto:</label>
+              <select id="cot-prod" class="form-control"></select>
+            </div>
+            <div class="form-group" style="max-width: 120px;">
+              <label for="cot-cant">Cantidad:</label>
+              <input type="number" id="cot-cant" class="form-control" value="1" min="1">
+            </div>
+            <div class="form-group" style="max-width: 150px;">
+              <label for="cot-precio">Precio Unit.:</label>
+              <input type="number" id="cot-precio" class="form-control" value="0">
+            </div>
+            <div class="form-group" style="align-self: flex-end;">
+              <button type="button" class="btn btn-secondary" id="btn-add-linea-cot">+ Agregar Ítem</button>
+            </div>
+          </div>
+          <table class="sap-table" style="margin-top: 15px;">
+            <thead>
+              <tr>
+                <th>Código</th><th>Descripción</th><th>Cantidad</th><th>Precio</th><th>IVA</th><th>Total</th><th>Acción</th>
+              </tr>
+            </thead>
+            <tbody id="cot-lineas-tbody"></tbody>
+          </table>
+          <div style="text-align: right; margin-top: 15px;">
+            <button type="submit" class="btn btn-primary" id="btn-guardar-cotizacion">Guardar Cotización</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top: 20px;">
+      <div class="card-header">
+        <h3>Cotizaciones Emitidas</h3>
+      </div>
+      <div class="card-body table-responsive">
+        <table class="sap-table">
+          <thead>
+            <tr>
+              <th>ID</th><th>Consecutivo</th><th>Cliente NIT</th><th>Fecha</th><th>Total</th><th>Estado</th><th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-cotizaciones"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top: 20px;">
+      <div class="card-header">
+        <h3>Pedidos de Venta (Convertir a Remisión o Factura)</h3>
+      </div>
+      <div class="card-body table-responsive">
+        <table class="sap-table">
+          <thead>
+            <tr>
+              <th>ID</th><th>Consecutivo</th><th>Cliente NIT</th><th>Fecha</th><th>Total</th><th>Estado</th><th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-pedidos"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ PESTAÑA: PUNTO DE VENTA (POS ELECTRÓNICO) ============ -->
+  <div id="tab-pos" class="tab-content">
+    <div class="kpi-grid" style="margin-bottom: 20px;">
+      <div class="kpi-card">
+        <div class="kpi-label">Caja Activa</div>
+        <div class="kpi-value" id="pos-caja-activa-nom">Sin Caja</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Estado Turno</div>
+        <div class="kpi-value" id="pos-turno-estado">CERRADO</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Base Inicial</div>
+        <div class="kpi-value" id="pos-base-inicial">$0</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Ventas Turno</div>
+        <div class="kpi-value" id="pos-ventas-turno">$0</div>
+      </div>
+    </div>
+
+    <section class="card">
+      <div class="card-header">
+        <h3>Control de Caja y Turno (Resolución DIAN 000165/2023)</h3>
+      </div>
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="pos-select-caja">Seleccionar Caja:</label>
+            <select id="pos-select-caja" class="form-control"></select>
+          </div>
+          <div class="form-group" style="max-width: 200px;">
+            <label for="pos-monto-base">Base Inicial ($):</label>
+            <input type="number" id="pos-monto-base" class="form-control" value="100000">
+          </div>
+          <div class="form-group" style="align-self: flex-end;">
+            <button class="btn btn-primary" id="btn-pos-abrir-caja">Abrir Turno de Caja</button>
+            <button class="btn btn-secondary" id="btn-pos-cerrar-caja" style="display:none;">Cerrar Caja / Arqueo</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Modal Arqueo -->
+    <div id="modal-pos-arqueo" class="modal-overlay" style="display:none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Arqueo y Cierre de Caja</h3>
+          <button class="modal-close" id="btn-close-arqueo">✕</button>
+        </div>
+        <div class="modal-body">
+          <p>Total Esperado en Efectivo: <strong id="pos-arqueo-esperado">$0</strong></p>
+          <div class="form-group">
+            <label for="pos-conteo-fisico">Efectivo Contado en Caja ($):</label>
+            <input type="number" id="pos-conteo-fisico" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label for="pos-arqueo-obs">Observaciones:</label>
+            <textarea id="pos-arqueo-obs" class="form-control" rows="2" placeholder="Notas del arqueo..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="btn-cancel-arqueo">Cancelar</button>
+          <button class="btn btn-primary" id="btn-confirmar-arqueo">Finalizar y Cerrar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Visor de Tirilla POS -->
+    <section class="card" id="card-pos-ticket" style="margin-top: 20px; display:none;">
+      <div class="card-header">
+        <h3>Tirilla Térmica POS ESC/POS (80mm)</h3>
+        <button class="btn btn-sm btn-secondary" id="btn-imprimir-tirilla">Imprimir Tirilla</button>
+      </div>
+      <div class="card-body">
+        <pre id="pos-ticket-preview" style="background:#fff; border: 1px dashed #999; padding: 15px; font-family: monospace; max-width: 400px; margin: 0 auto; white-space: pre-wrap;"></pre>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ PESTAÑA: BUZÓN COMPRAS & CUENTAS POR PAGAR (CxP) ============ -->
+  <div id="tab-compras-cxp" class="tab-content">
+    <div class="kpi-grid" style="margin-bottom: 20px;">
+      <div class="kpi-card">
+        <div class="kpi-label">CxP Corriente</div>
+        <div class="kpi-value" id="cxp-kpi-corriente">$0</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Vencido 1-30 Días</div>
+        <div class="kpi-value" id="cxp-kpi-1-30">$0</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Vencido 31-60 Días</div>
+        <div class="kpi-value" id="cxp-kpi-31-60">$0</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Vencido +90 Días</div>
+        <div class="kpi-value" id="cxp-kpi-mas-90">$0</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Total Deuda CxP</div>
+        <div class="kpi-value" id="cxp-kpi-total">$0</div>
+      </div>
+    </div>
+
+    <section class="card">
+      <div class="card-header">
+        <h3>Buzón de Recepción de Facturas Electrónicas de Proveedores</h3>
+      </div>
+      <div class="card-body">
+        <p class="text-muted">Cargue el archivo XML AttachedDocument o el archivo ZIP enviado por su proveedor para validar el CUFE, causar en contabilidad y generar eventos RADIAN.</p>
+        <div class="form-row">
+          <div class="form-group" style="flex: 1;">
+            <input type="file" id="compra-file-input" class="form-control" accept=".xml,.zip">
+          </div>
+          <button class="btn btn-primary" id="btn-procesar-compra-file">Procesar Factura Proveedor</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top: 20px;">
+      <div class="card-header">
+        <h3>Facturas de Proveedores Recibidas & Eventos RADIAN</h3>
+      </div>
+      <div class="card-body table-responsive">
+        <table class="sap-table">
+          <thead>
+            <tr>
+              <th>ID</th><th>Proveedor</th><th>Consecutivo</th><th>Fecha</th><th>Subtotal</th><th>IVA</th><th>Total</th><th>Estado RADIAN</th><th>Acciones RADIAN</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-compras"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top: 20px;">
+      <div class="card-header">
+        <h3>Cuentas por Pagar (CxP) Pendientes</h3>
+      </div>
+      <div class="card-body table-responsive">
+        <table class="sap-table">
+          <thead>
+            <tr>
+              <th>ID</th><th>Proveedor</th><th>Consecutivo</th><th>Vencimiento</th><th>Monto Total</th><th>Saldo Pendiente</th><th>Estado</th><th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-cxp"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Modal Comprobante de Egreso -->
+    <div id="modal-cxp-egreso" class="modal-overlay" style="display:none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Emitir Comprobante de Egreso (Pago Proveedor)</h3>
+          <button class="modal-close" id="btn-close-egreso">✕</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="egreso-fc-id">
+          <div class="form-group">
+            <label>Proveedor:</label>
+            <div id="egreso-proveedor-info" style="font-weight: bold; margin-bottom: 10px;">-</div>
+          </div>
+          <div class="form-group">
+            <label for="egreso-monto">Monto a Cancelar ($):</label>
+            <input type="number" id="egreso-monto" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label for="egreso-medio-pago">Medio de Pago:</label>
+            <select id="egreso-medio-pago" class="form-control">
+              <option value="TRANSFERENCIA">Transferencia Bancaria (111005)</option>
+              <option value="EFECTIVO">Efectivo (110505)</option>
+              <option value="CHEQUE">Cheque (111005)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="egreso-obs">Observaciones:</label>
+            <textarea id="egreso-obs" class="form-control" rows="2" placeholder="Detalle del pago..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="btn-cancel-egreso">Cancelar</button>
+          <button class="btn btn-primary" id="btn-confirmar-egreso">Confirmar Pago</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PESTAÑA: IMPUESTOS & FORMULARIOS DIAN ============ -->
+  <div id="tab-impuestos" class="tab-content">
+    <section class="card">
+      <div class="card-header">
+        <h3>Formulario 300 DIAN (Declaración del Impuesto sobre las Ventas - IVA)</h3>
+      </div>
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="f300-bimestre">Bimestre:</label>
+            <select id="f300-bimestre" class="form-control">
+              <option value="1">Bimestre 1 (Ene - Feb)</option>
+              <option value="2">Bimestre 2 (Mar - Abr)</option>
+              <option value="3">Bimestre 3 (May - Jun)</option>
+              <option value="4">Bimestre 4 (Jul - Ago)</option>
+              <option value="5">Bimestre 5 (Sep - Oct)</option>
+              <option value="6">Bimestre 6 (Nov - Dic)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="f300-anio">Año Fiscal:</label>
+            <input type="number" id="f300-anio" class="form-control" value="2026">
+          </div>
+          <div class="form-group" style="align-self: flex-end;">
+            <button class="btn btn-primary" id="btn-calcular-f300">Generar Borrador F300</button>
+          </div>
+        </div>
+        <div id="f300-resultado" style="margin-top: 20px; display:none;">
+          <table class="sap-table">
+            <thead>
+              <tr><th>Renglón</th><th>Concepto Oficial DIAN</th><th>Valor Liquidado</th></tr>
+            </thead>
+            <tbody id="f300-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top: 20px;">
+      <div class="card-header">
+        <h3>Formulario 350 DIAN (Declaración de Retención en la Fuente)</h3>
+      </div>
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="f350-mes">Mes:</label>
+            <select id="f350-mes" class="form-control">
+              <option value="1">Enero</option><option value="2">Febrero</option>
+              <option value="3">Marzo</option><option value="4">Abril</option>
+              <option value="5">Mayo</option><option value="6">Junio</option>
+              <option value="7">Julio</option><option value="8">Agosto</option>
+              <option value="9">Septiembre</option><option value="10">Octubre</option>
+              <option value="11">Noviembre</option><option value="12">Diciembre</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="f350-anio">Año Fiscal:</label>
+            <input type="number" id="f350-anio" class="form-control" value="2026">
+          </div>
+          <div class="form-group" style="align-self: flex-end;">
+            <button class="btn btn-primary" id="btn-calcular-f350">Generar Borrador F350</button>
+          </div>
+        </div>
+        <div id="f350-resultado" style="margin-top: 20px; display:none;">
+          <table class="sap-table">
+            <thead>
+              <tr><th>Renglón</th><th>Concepto Oficial DIAN</th><th>Valor Liquidado</th></tr>
+            </thead>
+            <tbody id="f350-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ PESTAÑA: LISTAS DE PRECIOS & TRASLADOS ============ -->
+  <div id="tab-precios" class="tab-content">
+    <section class="card">
+      <div class="card-header">
+        <h3>Listas de Precios Múltiples</h3>
+      </div>
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="lp-nombre">Nombre de Lista:</label>
+            <input type="text" id="lp-nombre" class="form-control" placeholder="Ej. Mayorista, Distribuidor">
+          </div>
+          <div class="form-group">
+            <label for="lp-desc">Descripción:</label>
+            <input type="text" id="lp-desc" class="form-control" placeholder="Descuento volumen...">
+          </div>
+          <div class="form-group" style="align-self: flex-end;">
+            <button class="btn btn-primary" id="btn-crear-lista-precio">Crear Lista</button>
+          </div>
+        </div>
+        <div style="margin-top: 15px;">
+          <table class="sap-table">
+            <thead>
+              <tr><th>ID</th><th>Nombre</th><th>Descripción</th><th>Acción</th></tr>
+            </thead>
+            <tbody id="tbody-listas-precios"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top: 20px;">
+      <div class="card-header">
+        <h3>Asignar Precios Especiales</h3>
+      </div>
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="asig-lp-select">Lista:</label>
+            <select id="asig-lp-select" class="form-control"></select>
+          </div>
+          <div class="form-group">
+            <label for="asig-prod-select">Producto:</label>
+            <select id="asig-prod-select" class="form-control"></select>
+          </div>
+          <div class="form-group">
+            <label for="asig-precio-val">Precio Especial ($):</label>
+            <input type="number" id="asig-precio-val" class="form-control" value="0">
+          </div>
+          <div class="form-group" style="align-self: flex-end;">
+            <button class="btn btn-primary" id="btn-guardar-precio-prod">Guardar Precio</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top: 20px;">
+      <div class="card-header">
+        <h3>Trazabilidad de Inventario: Traslados entre Bodegas</h3>
+      </div>
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="tras-prod">Producto:</label>
+            <select id="tras-prod" class="form-control"></select>
+          </div>
+          <div class="form-group">
+            <label for="tras-origen">Bodega Origen:</label>
+            <input type="text" id="tras-origen" class="form-control" value="BODEGA-01">
+          </div>
+          <div class="form-group">
+            <label for="tras-destino">Bodega Destino:</label>
+            <input type="text" id="tras-destino" class="form-control" value="BODEGA-02">
+          </div>
+          <div class="form-group" style="max-width: 120px;">
+            <label for="tras-cant">Cantidad:</label>
+            <input type="number" id="tras-cant" class="form-control" value="1" min="1">
+          </div>
+          <div class="form-group">
+            <label for="tras-lote">Lote (Opcional):</label>
+            <input type="text" id="tras-lote" class="form-control" placeholder="LOTE-2026-A">
+          </div>
+          <div class="form-group" style="align-self: flex-end;">
+            <button class="btn btn-primary" id="btn-ejecutar-traslado">Ejecutar Traslado</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+  </main>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
