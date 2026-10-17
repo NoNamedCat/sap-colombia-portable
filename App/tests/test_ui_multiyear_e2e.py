@@ -281,9 +281,7 @@ def _ui_emit_recibo_ui(page, medio: str = "EFECTIVO") -> dict:
         page.wait_for_selector("#modal-recaudo >> visible=true", timeout=15000)
         page.select_option("#recaudo-medio", value=medio)
         page.click("#btn-confirmar-recaudo")
-        page.wait_for_function(
-            "document.getElementById('modal-recaudo').style.display === 'none'", timeout=30000
-        )
+        page.wait_for_selector("#modal-recaudo", state="hidden", timeout=30000)
         # Da tiempo a que loadCartera() se recargue tras cada recibo
         page.wait_for_timeout(1000)
     return {}

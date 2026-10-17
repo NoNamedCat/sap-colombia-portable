@@ -20,7 +20,7 @@ def web_server():
     from sap_colombia import auth
     from sap_colombia import rbac
     _reset_db()
-    db.init_db()
+    db.init_db(seed=True)
     auth.seed_usuarios()
     rbac.ensure_rbac()
     server = HTTPServer(("127.0.0.1", TEST_PORT), SapWebHandler)

@@ -794,6 +794,23 @@ async function loadEmpresa() {
   try {
     const res = await apiFetch("/api/empresa");
     const data = await res.json();
+    if (!data || (!data.id && !data.nit)) {
+      document.getElementById("empresa-nombre").textContent = "Sin Empresa Registrada (Configuración ➜ Registrar Empresa)";
+      document.getElementById("emp-nit-info").textContent = "Sin NIT";
+      document.getElementById("emp-razon").textContent = "Sin Empresa Registrada";
+      document.getElementById("emp-resolucion-info").textContent = "Pendiente de configuración";
+      document.getElementById("emp-rango").textContent = "N/A";
+      document.getElementById("empresa-ambiente").textContent = "Ambiente: No definido";
+      const badge = document.getElementById("dian-status-badge");
+      if (badge) {
+        const real = data && data.dian_mode === "real";
+        const dbLabel = (data && data.active_dbname) ? ` · BD: ${data.active_dbname}` : "";
+        badge.className = real ? "badge badge-info" : "badge badge-warning";
+        badge.textContent = real ? `🏢 PRODUCCIÓN${dbLabel}` : `🧪 PRUEBAS${dbLabel}`;
+      }
+      return;
+    }
+
     document.getElementById("empresa-nombre").textContent = `${esc(data.razon_social)} (NIT: ${esc(data.nit)}-${esc(data.dv)})`;
     document.getElementById("emp-nit-info").textContent = `${esc(data.nit)}-${esc(data.dv)}`;
     document.getElementById("emp-razon").textContent = esc(data.razon_social);

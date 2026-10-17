@@ -285,7 +285,6 @@ def seed_usuarios() -> None:
     usuarios_seed = [
         {"email": "admin@sistema.com", "nombre": "Superadministrador de Plataforma", "rol": "SUPERADMIN", "password": "admin123", "empresa_id": None},
         {"email": "admin@saluki.com", "nombre": "Superadministrador de Sistema", "rol": "SUPERADMIN", "password": "admin123", "empresa_id": None},
-        {"email": "gerente@empresa.com", "nombre": "Gerente General", "rol": "ADMIN_EMPRESA", "password": "Gerente123!", "empresa_id": first_emp_id},
     ]
     for u in usuarios_seed:
         row = dbutil.query(

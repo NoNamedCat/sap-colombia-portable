@@ -1390,15 +1390,12 @@ def _migrate_schema(conn: psycopg2.extensions.connection) -> None:
         dbutil.query(conn, "ALTER TABLE pedidos_venta ADD COLUMN aprobado_por INTEGER")
 
 
-def init_db(seed: bool = True) -> None:
+def init_db(seed: bool = False) -> None:
     conn = get_connection()
     try:
         dbutil.exec_script(conn, _schema_sql())
         _migrate_schema(conn)
-        if seed:
-            _seed_datos(conn)
-            _seed_puc(conn)
-            _seed_bodegas(conn)
+        _seed_puc(conn)
         conn.commit()
     finally:
         conn.close()
@@ -1406,6 +1403,26 @@ def init_db(seed: bool = True) -> None:
     # porque parametros.py abre su propia conexión.
     from sap_colombia import parametros
     parametros.sembrar_parametros()
+    from sap_colombia import rbac
+    rbac.ensure_rbac()
+    if seed:
+        from sap_colombia import demo_data
+        demo_data.sembrar_datos_demo()
+
+
+def seed_demo_data() -> dict:
+    from sap_colombia import demo_data
+    return demo_data.sembrar_datos_demo()
+
+
+def clean_demo_data(solo_ficticios: bool = True) -> dict:
+    from sap_colombia import demo_data
+    return demo_data.limpiar_datos_demo(solo_ficticios=solo_ficticios)
+
+
+def get_demo_status() -> dict:
+    from sap_colombia import demo_data
+    return demo_data.estado_datos_demo()
 
 
 def _fetch_all(conn: psycopg2.extensions.connection, sql: str, params: tuple | None = None) -> list[dict]:

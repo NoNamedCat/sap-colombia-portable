@@ -380,6 +380,11 @@ def active_db_cfg(cfg: dict | None = None) -> dict:
     return db_cfg_for(cfg, "test" if is_test_mode(cfg) else "real")
 
 
+def active_dbname(cfg: dict | None = None) -> str:
+    """Retorna el nombre de la BD activa actual."""
+    return active_db_cfg(cfg)["dbname"]
+
+
 def clone_real_to_test(assume_yes: bool = False) -> bool:
     """Copia TODA la base de datos real sobre la base de datos de pruebas.
 
@@ -541,7 +546,33 @@ def reset_test_db(assume_yes: bool = False) -> bool:
     cur.execute(f'CREATE DATABASE "{dst}" ENCODING \'UTF8\'')
     cur.close()
     admin.close()
-    print(f"✅ BD de pruebas '{dst}' reiniciada (vacía). El ERP creará el esquema y datos demo al iniciar.")
+
+    # Inicializar el esquema limpio en la BD de pruebas
+    dst_dsn = build_dsn_from_cfg(dst_cfg)
+    sys.path.insert(0, os.path.join(APP_DIR, "src"))
+    prev_dsn = os.environ.get("SAP_PG_DSN")
+    os.environ["SAP_PG_DSN"] = dst_dsn
+    try:
+        from sap_colombia import database as sap_db
+        sap_db.PG_DSN = dst_dsn
+        sap_db.init_db(seed=False)
+        from sap_colombia import auth
+        auth.seed_usuarios()
+        if not assume_yes:
+            pob = input("\n¿Deseas poblar la BD de pruebas con datos demo para ensayar de inmediato? (s/n) [s]: ").strip().lower()
+            if pob in ("", "s", "si", "y", "yes"):
+                from sap_colombia import demo_data
+                demo_data.sembrar_datos_demo()
+                print("🌱 Datos de demostración sembrados en la BD de pruebas.")
+            else:
+                print("✨ BD de pruebas inicializada limpia (sin datos demo).")
+        else:
+            print(f"✅ BD de pruebas '{dst}' reiniciada limpia.")
+    finally:
+        if prev_dsn is None:
+            os.environ.pop("SAP_PG_DSN", None)
+        else:
+            os.environ["SAP_PG_DSN"] = prev_dsn
     return True
 
 
@@ -815,6 +846,95 @@ def start_erp_system():
         _stop_pg()
 
 
+def poblar_demo_wrapper(assume_yes: bool = False):
+    cfg = load_config()
+    db_cfg = active_db_cfg(cfg)
+    ensure_database_exists(db_cfg)
+    dsn = build_dsn_from_cfg(db_cfg)
+    prev = os.environ.get("SAP_PG_DSN")
+    os.environ["SAP_PG_DSN"] = dsn
+    try:
+        sys.path.insert(0, os.path.join(APP_DIR, "src"))
+        from sap_colombia import database as sap_db
+        sap_db.PG_DSN = dsn
+        sap_db.init_db(seed=False)
+        from sap_colombia import demo_data
+        print(f"\n🌱 Sembrando datos de demostración en '{db_cfg['dbname']}'...")
+        res = demo_data.sembrar_datos_demo()
+        print("✅ Datos de demostración sembrados con éxito:")
+        print(f"   • Empresas creadas : {res.get('empresas', 0)} (Empresa Corporativa y Inversiones Andinas)")
+        print(f"   • Clientes creados : {res.get('clientes', 0)}")
+        print(f"   • Productos creados: {res.get('productos', 0)} (P001 - P005 con tarifas IVA)")
+        print(f"   • Empleados creados: {res.get('empleados', 0)}")
+        print(f"   • Usuarios creados : {res.get('usuarios', 0)} (gerente, contador, vendedor, etc.)")
+    finally:
+        if prev is None:
+            os.environ.pop("SAP_PG_DSN", None)
+        else:
+            os.environ["SAP_PG_DSN"] = prev
+
+
+def limpiar_demo_wrapper(assume_yes: bool = False, full: bool = False):
+    cfg = load_config()
+    db_cfg = active_db_cfg(cfg)
+    ensure_database_exists(db_cfg)
+    dsn = build_dsn_from_cfg(db_cfg)
+    db_name = db_cfg['dbname']
+    print(f"\n⚠️  ATENCIÓN: Se procederá a LIMPIAR los datos de demostración de '{db_name}'.")
+    print("   Se preservará siempre el catálogo PUC, parámetros DIAN y el Superadministrador (admin@sistema.com).")
+    if not assume_yes:
+        confirm = input(f"¿Estás seguro de que deseas limpiar los datos demo de '{db_name}'? (s/n) [n]: ").strip().lower()
+        if confirm not in ("s", "si", "y", "yes"):
+            print("   Operación cancelada.")
+            return
+    prev = os.environ.get("SAP_PG_DSN")
+    os.environ["SAP_PG_DSN"] = dsn
+    try:
+        sys.path.insert(0, os.path.join(APP_DIR, "src"))
+        from sap_colombia import database as sap_db
+        sap_db.PG_DSN = dsn
+        from sap_colombia import demo_data
+        demo_data.limpiar_datos_demo(solo_ficticios=not full)
+        print(f"✨ Base de datos '{db_name}' limpia con éxito. Lista para producción.")
+        print("   Acceso inicial preservado: admin@sistema.com / admin123")
+    finally:
+        if prev is None:
+            os.environ.pop("SAP_PG_DSN", None)
+        else:
+            os.environ["SAP_PG_DSN"] = prev
+
+
+def estado_demo_wrapper():
+    cfg = load_config()
+    db_cfg = active_db_cfg(cfg)
+    ensure_database_exists(db_cfg)
+    dsn = build_dsn_from_cfg(db_cfg)
+    prev = os.environ.get("SAP_PG_DSN")
+    os.environ["SAP_PG_DSN"] = dsn
+    try:
+        sys.path.insert(0, os.path.join(APP_DIR, "src"))
+        from sap_colombia import database as sap_db
+        sap_db.PG_DSN = dsn
+        from sap_colombia import demo_data
+        st = demo_data.estado_datos_demo()
+        print(f"\n📊 Estado de la base de datos activa: '{db_cfg['dbname']}'")
+        print(f"   • Empresas registradas : {st['total_empresas']} (Demo: {st['empresas_demo']})")
+        print(f"   • Clientes registrados : {st['total_clientes']}")
+        print(f"   • Productos registrados: {st['total_productos']}")
+        print(f"   • Usuarios registrados : {st['total_usuarios']} (Demo: {st['usuarios_demo']})")
+        if st["tiene_demo"]:
+            print("   👉 Diagnóstico: 🌱 CONTIENE DATOS DE DEMOSTRACIÓN (Para vaciar: --clean-demo)")
+        elif st["es_limpio"]:
+            print("   👉 Diagnóstico: ✨ SISTEMA LIMPIO / PRODUCCIÓN (Para poblar demo: --seed-demo)")
+        else:
+            print("   👉 Diagnóstico: 🏢 DATOS DE PRODUCCIÓN REALES REGISTRADOS")
+    finally:
+        if prev is None:
+            os.environ.pop("SAP_PG_DSN", None)
+        else:
+            os.environ["SAP_PG_DSN"] = prev
+
+
 # ==============================================================================
 # 4. MENÚ INTERACTIVO UNIFICADO DE CONFIGURACIÓN Y PORTABILIZACIÓN
 # ==============================================================================
@@ -836,6 +956,29 @@ def print_status_banner():
     win_pg_ok = os.path.isfile(os.path.join(APP_DIR, "engine", "windows", "bin", "postgres.exe"))
     win_py_ok = os.path.isfile(os.path.join(APP_DIR, "runtime", "windows", "python.exe"))
 
+    demo_status_txt = "—"
+    try:
+        sys.path.insert(0, os.path.join(APP_DIR, "src"))
+        from sap_colombia import demo_data
+        dsn_act = build_dsn_from_cfg(active_db_cfg(cfg))
+        prev_dsn = os.environ.get("SAP_PG_DSN")
+        os.environ["SAP_PG_DSN"] = dsn_act
+        from sap_colombia import database as sap_db
+        sap_db.PG_DSN = dsn_act
+        st = demo_data.estado_datos_demo()
+        if prev_dsn is None:
+            os.environ.pop("SAP_PG_DSN", None)
+        else:
+            os.environ["SAP_PG_DSN"] = prev_dsn
+        if st["tiene_demo"]:
+            demo_status_txt = f"🌱 Con Datos Demo ({st['total_empresas']} emp, {st['total_clientes']} cli, {st['total_productos']} prod)"
+        elif st["es_limpio"]:
+            demo_status_txt = "✨ Sistema Limpio (Listo para Producción · 0 empresas)"
+        else:
+            demo_status_txt = f"🏢 Datos Reales de Producción ({st['total_empresas']} emp registradas)"
+    except Exception:
+        pass
+
     print("\n======================================================================")
     print(" 🎛️  PANEL DE CONTROL Y PORTABILIDAD — ERP CORPORATIVO COLOMBIA")
     print("======================================================================")
@@ -847,6 +990,7 @@ def print_status_banner():
     test_mark = "  ◀ ACTIVA" if dian_mode != "real" else ""
     print(f" 🏢 BD Real           : {real_dbname(cfg)}{real_mark}")
     print(f" 🧪 BD de Pruebas     : {test_dbname(cfg)}{test_mark}")
+    print(f" 📊 Estado BD Activa   : {demo_status_txt}")
     print(f" 🏛️  Entorno Global     : {dian_label}")
     print(f" 🌐 Servidor Web HTTP  : http://{srv_cfg.get('host', '127.0.0.1')}:{srv_cfg.get('http_port', 8000)}")
     print(f" 🐧 Motor Portable Linux   : PostgreSQL [{'✅ LISTO' if linux_pg_ok else '⚠️ PENDIENTE'}] | Python [{'✅ LISTO' if linux_py_ok else '⚠️ PENDIENTE'}]")
@@ -969,11 +1113,13 @@ def interactive_menu():
         print("  3) 🌐 Cambiar a Servidor PostgreSQL EXTERNO (Red Local / Nube / Docker)")
         print("  4) 🏛️  Cambiar Entorno Global (🧪 Pruebas Mockup vs. 🚀 Trabajo Real DIAN)")
         print("  5) 🔁 Migrar / Clonar BD REAL  ➜  BD de PRUEBAS (Sandbox Seguro)")
-        print("  6) 🧹 Reiniciar BD de PRUEBAS (Limpiar datos de pruebas)")
-        print("  7) 📦 Portabilizar / Descargar Motores (Linux + Windows para USB)")
-        print("  8) 💾 Exportar Respaldo Universal de Datos (Data/backups/respaldo_universal.json)")
-        print("  9) 📥 Importar / Restaurar Respaldo Universal en la Base de Datos Activa")
-        print("  10) 🔧 Cambiar Puerto Web HTTP / Acceso desde Red Local (LAN)")
+        print("  6) 🧹 Reiniciar BD de PRUEBAS (Vaciar base de datos de pruebas)")
+        print("  7) 🌱 Poblar Base de Datos Activa con Datos Demo (Demostración)")
+        print("  8) 🗑️  Limpiar Datos Demo de la Base de Datos Activa (Dejar BD Limpia para Producción)")
+        print("  9) 📦 Portabilizar / Descargar Motores (Linux + Windows para USB)")
+        print("  10) 💾 Exportar Respaldo Universal de Datos (Data/backups/respaldo_universal.json)")
+        print("  11) 📥 Importar / Restaurar Respaldo Universal en la Base de Datos Activa")
+        print("  12) 🔧 Cambiar Puerto Web HTTP / Acceso desde Red Local (LAN)")
         print("  0) Salir")
         choice = input("\n👉 Selecciona una opción [1]: ").strip() or "1"
 
@@ -991,6 +1137,10 @@ def interactive_menu():
         elif choice == "6":
             with_db_server(reset_test_db, assume_yes=False)
         elif choice == "7":
+            with_db_server(poblar_demo_wrapper, assume_yes=False)
+        elif choice == "8":
+            with_db_server(limpiar_demo_wrapper, assume_yes=False)
+        elif choice == "9":
             print("\n  a) Portabilizar AMBOS (Linux + Windows — ideal para memoria USB híbrida)")
             print("  b) Portabilizar solo Linux (PostgreSQL 17.2 + Python 3.12)")
             print("  c) Portabilizar solo Windows (PostgreSQL 17.2 + Python 3.12)")
@@ -1006,11 +1156,11 @@ def interactive_menu():
                 setup_linux_python()
                 setup_windows_postgres()
                 setup_windows_python()
-        elif choice == "8":
-            export_universal_backup()
-        elif choice == "9":
-            import_universal_backup()
         elif choice == "10":
+            export_universal_backup()
+        elif choice == "11":
+            import_universal_backup()
+        elif choice == "12":
             cfg = load_config()
             p_in = input(f"Puerto Web HTTP [{cfg['server'].get('http_port', 8000)}]: ").strip()
             if p_in.isdigit():
@@ -1032,6 +1182,9 @@ def main():
     parser.add_argument("--ensure-db", action="store_true", help="Asegurar que la base de datos activa exista")
     parser.add_argument("--clone-to-test", action="store_true", help="Clonar BD real sobre la BD de pruebas")
     parser.add_argument("--reset-test-db", action="store_true", help="Reiniciar (vaciar) la BD de pruebas")
+    parser.add_argument("--seed-demo", action="store_true", help="Poblar la base de datos activa con datos de demostración")
+    parser.add_argument("--clean-demo", action="store_true", help="Limpiar datos de demostración de la base de datos activa")
+    parser.add_argument("--status-demo", action="store_true", help="Consultar estado de datos demo en la base de datos activa")
     parser.add_argument("--yes", "-y", action="store_true", help="Confirmar automáticamente sin preguntar")
     parser.add_argument("--set-db", choices=["embedded", "external"], help="Configurar modo de base de datos por CLI")
     parser.add_argument("--host", help="Host de PostgreSQL externo")
@@ -1050,6 +1203,18 @@ def main():
     parser.add_argument("--export-backup", action="store_true", help="Exportar respaldo universal en Data/backups/")
     parser.add_argument("--import-backup", action="store_true", help="Importar respaldo universal desde Data/backups/")
     args = parser.parse_args()
+
+    if args.seed_demo:
+        with_db_server(poblar_demo_wrapper, assume_yes=args.yes)
+        return
+
+    if args.clean_demo:
+        with_db_server(limpiar_demo_wrapper, assume_yes=args.yes)
+        return
+
+    if args.status_demo:
+        with_db_server(estado_demo_wrapper)
+        return
 
     if args.clone_to_test:
         with_db_server(clone_real_to_test, assume_yes=args.yes)

@@ -114,7 +114,7 @@ def _reset_state():
         except Exception:
             conn.rollback()
     conn.close()
-    db.init_db()
+    db.init_db(seed=True)
     from sap_colombia import auth, rbac
     auth.seed_usuarios()
     rbac.ensure_rbac()
