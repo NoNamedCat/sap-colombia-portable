@@ -538,7 +538,7 @@
       </table>
 
       <h3 style="margin:22px 0 10px 0; color:#0f172a;">🎛️ 2. Opciones Paso a Paso del Panel de Control Interactivo</h3>
-      <p>Al abrir <code>./Configurar_ERP_Linux.sh</code> (Linux) o <code>Configurar_ERP_Windows.bat</code> (Windows), verás el estado actual del sistema y <strong>10 opciones numeradas</strong>:</p>
+      <p>Al abrir <code>./Configurar_ERP_Linux.sh</code> (Linux) o <code>Configurar_ERP_Windows.bat</code> (Windows), verás el estado actual del sistema y <strong>12 opciones numeradas</strong>:</p>
 
       <ul class="step-list">
         <li class="step-item">
@@ -565,22 +565,30 @@
         </li>
         <li class="step-item">
           <span class="step-num">6</span>
-          <div class="step-text"><strong>🧹 Reiniciar BD de PRUEBAS (Limpiar datos de pruebas):</strong> Vacía la base de datos de pruebas para empezar desde cero con datos limpios de demostración cuando lo necesites.</div>
+          <div class="step-text"><strong>🧹 Reiniciar BD de PRUEBAS (Esquema Limpio):</strong> Vacía la base de datos de pruebas para empezar desde cero con un esquema limpio sin datos residuales.</div>
         </li>
         <li class="step-item">
           <span class="step-num">7</span>
-          <div class="step-text"><strong>📦 Portabilizar / Descargar Motores (Linux + Windows para USB):</strong> Descarga y empaqueta automáticamente PostgreSQL 17.2 y Python 3.12 + librerías nativas para Linux (<code>App/engine/linux</code>, <code>App/runtime/linux</code>) y Windows (<code>App/engine/windows</code>, <code>App/runtime/windows</code>).</div>
+          <div class="step-text"><strong>🌱 Poblar Base de Datos Activa con Datos Demo:</strong> Llena 2 empresas ficticias completas con identidades visuales, logotipos, catálogo de clientes y productos, cajas POS, empleados y usuarios con todos los roles listos para explorar y capacitar al equipo.</div>
         </li>
         <li class="step-item">
           <span class="step-num">8</span>
-          <div class="step-text"><strong>💾 Exportar Respaldo Universal de Datos:</strong> Exporta todas las tablas de la base de datos activa a un archivo neutro <code>Data/backups/respaldo_universal.json</code>.</div>
+          <div class="step-text"><strong>🗑️ Limpiar Datos Demo de la Base de Datos Activa (Modo Producción):</strong> Elimina cuidadosamente empresas y datos ficticios de la base de datos seleccionada, dejando el sistema 100% limpio para operación real. <em>Preserva intactos el catálogo oficial PUC colombiano, las tablas legales tributarias DIAN y tu cuenta de Superadministrador.</em></div>
         </li>
         <li class="step-item">
           <span class="step-num">9</span>
-          <div class="step-text"><strong>📥 Importar / Restaurar Respaldo Universal:</strong> Restaura el archivo <code>Data/backups/respaldo_universal.json</code> en la base de datos activa. Es la forma ideal de pasar tus datos entre Linux, Windows o hacia un servidor PostgreSQL externo.</div>
+          <div class="step-text"><strong>📦 Portabilizar / Descargar Motores (Linux + Windows para USB):</strong> Descarga y empaqueta automáticamente PostgreSQL 17.2 y Python 3.12 + librerías nativas para Linux (<code>App/engine/linux</code>, <code>App/runtime/linux</code>) y Windows (<code>App/engine/windows</code>, <code>App/runtime/windows</code>).</div>
         </li>
         <li class="step-item">
           <span class="step-num">10</span>
+          <div class="step-text"><strong>💾 Exportar Respaldo Universal de Datos:</strong> Exporta todas las tablas de la base de datos activa a un archivo neutro <code>Data/backups/respaldo_universal.json</code>.</div>
+        </li>
+        <li class="step-item">
+          <span class="step-num">11</span>
+          <div class="step-text"><strong>📥 Importar / Restaurar Respaldo Universal:</strong> Restaura el archivo <code>Data/backups/respaldo_universal.json</code> en la base de datos activa. Es la forma ideal de pasar tus datos entre Linux, Windows o hacia un servidor PostgreSQL externo.</div>
+        </li>
+        <li class="step-item">
+          <span class="step-num">12</span>
           <div class="step-text"><strong>🔧 Cambiar Puerto Web HTTP / Acceso desde Red Local (LAN):</strong> Te permite cambiar el puerto web (por defecto <code>8000</code>) y habilitar el acceso en red local (<code>0.0.0.0</code>) para que otros computadores de la oficina entren desde su navegador.</div>
         </li>
       </ul>
@@ -588,6 +596,9 @@
       <div class="alert alert-info">
         <div>💡</div>
         <div><strong>Comandos Directos por Terminal (Opcional):</strong> También puedes automatizar cualquier cambio sin entrar al menú interactivo ejecutando:
+          <br>• Poblar datos demo en BD activa: <code>./Configurar_ERP_Linux.sh --seed-demo</code>
+          <br>• Limpiar datos demo (sistema limpio producción): <code>./Configurar_ERP_Linux.sh --clean-demo -y</code>
+          <br>• Diagnóstico de datos demo en BD activa: <code>./Configurar_ERP_Linux.sh --status-demo</code>
           <br>• Clonar BD Real a BD de Pruebas: <code>./Configurar_ERP_Linux.sh --clone-to-test -y</code>
           <br>• Reiniciar BD de Pruebas: <code>./Configurar_ERP_Linux.sh --reset-test-db -y</code>
           <br>• Configurar todo el sistema para Pruebas (Simulador Local): <code>./Configurar_ERP_Linux.sh --set-dian mock</code>
@@ -601,10 +612,19 @@
     <!-- TABLA DE CREDENCIALES -->
     <section class="module-card" id="credenciales">
       <div class="module-header">
-        <h2>🔑 Cuentas y Contraseñas Listas para Probar</h2>
-        <span class="module-tag">Usuarios de Demostración</span>
+        <h2>🔑 Cuentas y Credenciales de Acceso</h2>
+        <span class="module-tag">Acceso al Sistema</span>
       </div>
-      <p>Usa cualquiera de estas cuentas en <a href="http://127.0.0.1:8000" target="_blank" style="color:var(--primary); font-weight:700;">http://127.0.0.1:8000</a> para explorar cada perfil:</p>
+      <div class="alert alert-info" style="margin-bottom:18px;">
+        <div>🛡️</div>
+        <div>
+          <strong>Sistema Limpio por Defecto para Producción:</strong>
+          Al iniciar el ERP por primera vez, el sistema arranca <strong>100% limpio</strong> (solo incluye el catálogo oficial PUC colombiano, retenciones DIAN y la cuenta de Superadministrador).
+          <br>🌱 <strong>Para habilitar las cuentas y empresas de demostración de la tabla inferior:</strong> Selecciona la <strong>Opción 7 ("Poblar Base de Datos Activa con Datos Demo")</strong> en el panel de control o corre <code>./Configurar_ERP_Linux.sh --seed-demo</code>.
+          <br>🗑️ <strong>Para pasar a producción real:</strong> Selecciona la <strong>Opción 8 ("Limpiar Datos Demo")</strong> o ejecuta <code>./Configurar_ERP_Linux.sh --clean-demo -y</code>.
+        </div>
+      </div>
+      <p>Usa cualquiera de estas cuentas en <a href="http://127.0.0.1:8000" target="_blank" style="color:var(--primary); font-weight:700;">http://127.0.0.1:8000</a>:</p>
 
       <table>
         <thead>

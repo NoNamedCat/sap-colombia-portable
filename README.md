@@ -54,12 +54,17 @@ El panel incluye **10 opciones numeradas**:
    - *🚀 Trabajo Real (DIAN)*: Conecta con la BD de producción `sap_colombia` y Web Services SOAP oficiales de la DIAN.
 5. **🔁 Clonar BD Real a BD de Pruebas (Sandbox Seguro)**: Copia con 1 clic el 100% de empresas, clientes, cuentas y facturas de producción a la BD de pruebas para ensayar sin comprometer datos reales.
 6. **🧹 Reiniciar BD de Pruebas**: Limpia la base de datos de pruebas para empezar desde cero.
-7. **📦 Portabilizar / Descargar Motores**: Descarga e instala automáticamente PostgreSQL 17.2 y Python 3.12 con sus dependencias en `App/`.
-8. **💾 Exportar Respaldo Universal**: Genera un archivo neutro JSON en `Data/backups/` con todas las tablas.
-9. **📥 Importar / Restaurar Respaldo Universal**: Restaura datos entre plataformas (Linux ↔ Windows ↔ PostgreSQL externo).
-10. **🔧 Cambiar Puerto Web y Acceso en Red Local (LAN)**: Permite habilitar acceso a otros computadores en red local (`0.0.0.0`).
+7. **🌱 Poblar Base de Datos Activa con Datos Demo**: Llena 2 empresas con logos e identidad visual, clientes, productos, cajas POS, empleados y usuarios con todos los roles listos para explorar.
+8. **🗑️ Limpiar Datos Demo de la Base de Datos Activa**: Remueve todas las empresas, transacciones y cuentas ficticias, dejando la base de datos 100% limpia para producción real (preservando intacto el catálogo PUC oficial, parámetros tributarios DIAN y el Superadministrador).
+9. **📦 Portabilizar / Descargar Motores**: Descarga e instala automáticamente PostgreSQL 17.2 y Python 3.12 con sus dependencias en `App/`.
+10. **💾 Exportar Respaldo Universal**: Genera un archivo neutro JSON en `Data/backups/` con todas las tablas.
+11. **📥 Importar / Restaurar Respaldo Universal**: Restaura datos entre plataformas (Linux ↔ Windows ↔ PostgreSQL externo).
+12. **🔧 Cambiar Puerto Web y Acceso en Red Local (LAN)**: Permite habilitar acceso a otros computadores en red local (`0.0.0.0`).
 
 > 💡 **Comandos directos por terminal (sin entrar al menú):**
+> - Poblar datos demo en BD activa: `./Configurar_ERP_Linux.sh --seed-demo`
+> - Limpiar datos demo (sistema limpio producción): `./Configurar_ERP_Linux.sh --clean-demo -y`
+> - Diagnóstico de datos demo en BD activa: `./Configurar_ERP_Linux.sh --status-demo`
 > - Clonar BD Real a Pruebas: `./Configurar_ERP_Linux.sh --clone-to-test -y`
 > - Reiniciar BD de Pruebas: `./Configurar_ERP_Linux.sh --reset-test-db -y`
 > - Modo Pruebas (Simulador): `./Configurar_ERP_Linux.sh --set-dian mock`
@@ -69,15 +74,21 @@ El panel incluye **10 opciones numeradas**:
 
 ---
 
-## 🔑 Cuentas de Demostración Incluidas
+## 🔑 Cuentas y Credenciales de Acceso
+
+> 🛡️ **Base de Datos Limpia por Defecto:** Al iniciar el ERP por primera vez, el sistema arranca **100% limpio para producción**, conteniendo únicamente el catálogo PUC colombiano oficial, parámetros de retención DIAN y la cuenta de **SUPERADMIN** (`admin@sistema.com` / `admin123`).
+> 
+> 🌱 **¿Quieres explorar con datos de prueba?** Abre el panel (`./Configurar_ERP_Linux.sh` o `Configurar_ERP_Windows.bat`) y selecciona la **Opción 7 ("Poblar Base de Datos Activa con Datos Demo")**, o ejecuta `./Configurar_ERP_Linux.sh --seed-demo`. Esto creará 2 empresas, clientes, productos y las cuentas de rol listadas abajo.
+> 
+> 🗑️ **¿Listo para trabajar en producción real?** Selecciona la **Opción 8 ("Limpiar Datos Demo")** o ejecuta `./Configurar_ERP_Linux.sh --clean-demo -y`.
 
 | Cargo / Rol | Correo Electrónico | Contraseña | Alcance Operativo |
 | :--- | :--- | :--- | :--- |
-| **SUPERADMIN** | `admin@sistema.com` | `admin123` | Control total de plataforma, empresas, marca/colores/fuentes y SoD |
-| **ADMIN_EMPRESA** | `gerente@empresa.com` | `Gerente123!` | Dashboard gerencial, aprobación de descuentos y supervisión |
-| **CONTADOR** | `contador@empresa.com` | `Contador123!` | PUC, balance, libros oficiales, impuestos 300/350/Exógena y cierre |
-| **VENDEDOR** | `vendedor@empresa.com` | `Vendedor123!` | Ciclo comercial, cotizaciones propias, pedidos y facturación |
-| **TESORERO** | `tesorero@empresa.com` | `Tesorero123!` | Buzón XML compras, eventos RADIAN (030/032/033) y Cuentas por Pagar |
+| **SUPERADMIN** | `admin@sistema.com` | `admin123` | *Siempre disponible*. Control total, empresas, marca/colores/fuentes y SoD |
+| **ADMIN_EMPRESA** | `gerente@empresa.com` | `Gerente123!` | *Tras poblar demo*. Dashboard gerencial, aprobación de descuentos y supervisión |
+| **CONTADOR** | `contador@empresa.com` | `Contador123!` | *Tras poblar demo*. PUC, balance, libros oficiales, impuestos 300/350/Exógena |
+| **VENDEDOR** | `vendedor@empresa.com` | `Vendedor123!` | *Tras poblar demo*. Ciclo comercial, cotizaciones propias, pedidos y facturación |
+| **TESORERO** | `tesorero@empresa.com` | `Tesorero123!` | *Tras poblar demo*. Buzón XML compras, eventos RADIAN (030/032/033) y Cuentas por Pagar |
 | **CAJERO_POS** | `cajero@empresa.com` | `Cajero123!` | Apertura de turno, tickets electrónicos POS y arqueo de caja |
 | **RECURSOS_HUMANOS** | `rrhh@empresa.com` | `Nomina123!` | Registro de personal, liquidación mensual y Nómina Electrónica DIAN |
 | **ALMACENISTA** | `almacen@empresa.com` | `Almacen123!` | Kardex, listas de precios y control de lotes con vencimiento |
