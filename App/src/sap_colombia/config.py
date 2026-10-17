@@ -60,15 +60,28 @@ def pg_dsn() -> str:
     env_dsn = _get_env("SAP_PG_DSN")
     if env_dsn:
         return env_dsn
-    cfg = _load_portable_config().get("database", {})
+    full_cfg = _load_portable_config()
+    cfg = full_cfg.get("database", {})
     custom_dsn = (cfg.get("dsn") or "").strip()
-    if custom_dsn:
+    if custom_dsn and dian_mode() == "real":
         return custom_dsn
     host = _get_env("SAP_DB_HOST") or cfg.get("host") or "127.0.0.1"
     port = _get_env("SAP_DB_PORT") or cfg.get("port") or 54329
     user = _get_env("SAP_DB_USER") or cfg.get("user") or "sap"
     password = _get_env("SAP_DB_PASSWORD") if os.environ.get("SAP_DB_PASSWORD") is not None else (cfg.get("password") or "")
-    dbname = _get_env("SAP_DB_NAME") or cfg.get("dbname") or "sap_colombia"
+    
+    # Si estamos en modo pruebas (mock), usar la base de datos de pruebas si no se especificó SAP_DB_NAME
+    env_dbname = _get_env("SAP_DB_NAME")
+    if env_dbname:
+        dbname = env_dbname
+    else:
+        real_name = cfg.get("dbname") or "sap_colombia"
+        if dian_mode() != "real":
+            test_name = (cfg.get("test_dbname") or "").strip()
+            dbname = test_name or f"{real_name}_pruebas"
+        else:
+            dbname = real_name
+
     sslmode = _get_env("SAP_DB_SSLMODE") or cfg.get("sslmode") or ""
 
     auth_part = quote_plus(str(user))
@@ -104,41 +117,45 @@ def _get_env(key: str, default: str = "") -> str:
 
 
 def dian_mode() -> str:
-    """Modo de operación DIAN: ``mock`` o ``real``."""
-    mode = _get_env("SAP_DIAN_MODE", _DIAN_MODE_DEFAULT).lower()
-    if mode not in (DIAN_MODE_MOCK, DIAN_MODE_REAL):
-        return DIAN_MODE_MOCK
-    return mode
+    """Modo global de operación DIAN: ``mock`` (pruebas locales) o ``real`` (DIAN oficial)."""
+    env_mode = _get_env("SAP_DIAN_MODE").lower()
+    if env_mode in (DIAN_MODE_MOCK, DIAN_MODE_REAL, "mock_soap"):
+        return env_mode
+    cfg_mode = str(_load_portable_config().get("dian", {}).get("mode", "")).strip().lower()
+    if cfg_mode in (DIAN_MODE_MOCK, DIAN_MODE_REAL, "mock_soap"):
+        return cfg_mode
+    return _DIAN_MODE_DEFAULT
 
 
 def dian_user() -> str:
     """Usuario API de DIAN."""
-    return _get_env("SAP_DIAN_USER")
+    return _get_env("SAP_DIAN_USER") or str(_load_portable_config().get("dian", {}).get("user", ""))
 
 
 def dian_password() -> str:
     """Contraseña API de DIAN."""
-    return _get_env("SAP_DIAN_PASSWORD")
+    return _get_env("SAP_DIAN_PASSWORD") or str(_load_portable_config().get("dian", {}).get("password", ""))
 
 
 def dian_ambiente() -> str:
     """Ambiente DIAN: '1' para habilitación/pruebas, '2' para producción."""
-    return _get_env("SAP_DIAN_AMBIENTE", "1")
+    return _get_env("SAP_DIAN_AMBIENTE") or str(_load_portable_config().get("dian", {}).get("ambiente", "1"))
 
 
 def dian_test_set_id() -> str:
     """Identificador del set de pruebas para habilitación."""
-    return _get_env("SAP_DIAN_TEST_SET_ID")
+    return _get_env("SAP_DIAN_TEST_SET_ID") or str(_load_portable_config().get("dian", {}).get("test_set_id", ""))
 
 
 def dian_transmit_url() -> str:
     """URL del endpoint SOAP de DIAN para transmisión de documentos."""
-    custom = _get_env("SAP_DIAN_TRANSMIT_URL")
+    custom = _get_env("SAP_DIAN_TRANSMIT_URL") or str(_load_portable_config().get("dian", {}).get("transmit_url", "")).strip()
     if custom:
         return custom
     if dian_ambiente() == "2":
         return DIAN_PRODUCCION_URL_DEFAULT
     return DIAN_HABILITACION_URL_DEFAULT
+
 
 
 def dian_timeout() -> int:

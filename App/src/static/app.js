@@ -805,13 +805,14 @@ async function loadEmpresa() {
     // de operación. Ahora refleja el modo real (mock vs. DIAN real) y si hay
     // certificado configurado, que es lo que exige la DIAN en producción.
     const badge = document.getElementById("dian-status-badge");
-    const real = data.url_dian && data.url_dian.trim() !== "";
+    const real = data.dian_mode === "real";
     const conCert = !!(data.ruta_certificado && data.ruta_certificado.trim() !== "");
     const produccion = data.tipo_ambiente === "2";
     if (!real) {
       badge.className = "badge badge-warning";
-      badge.textContent = "DIAN: modo simulado (no transmite a la DIAN real)";
-      badge.title = "Configure empresas.url_dian y SAP_DIAN_MODE=real para transmite a la DIAN.";
+      const dbLabel = data.active_dbname ? ` · BD: ${data.active_dbname}` : "";
+      badge.textContent = `🧪 PRUEBAS (Simulador Local)${dbLabel}`;
+      badge.title = "Modo PRUEBAS activo. Usa una BD aislada. Usa ./Configurar_ERP_Linux.sh --clone-to-test para actualizarla.";
     } else if (produccion && !conCert) {
       badge.className = "badge badge-danger";
       badge.textContent = "DIAN: producción SIN certificado digital";
@@ -2353,7 +2354,6 @@ function showEmpresaForm(empresa = null) {
       form.querySelector('#emp-fecha-resolucion').value = empresa.fecha_resolucion || '';
       form.querySelector('#emp-clave').value = empresa.clave_tecnica || '';
       form.querySelector('#emp-ambiente').value = empresa.tipo_ambiente || '2';
-      form.querySelector('#emp-url-dian').value = empresa.url_dian || '';
       // Branding fields
       const marca = empresa.nombre_marca || 'ERP';
       const logoData = empresa.logo_data || '';
@@ -2411,7 +2411,6 @@ async function saveEmpresa(e) {
     fecha_resolucion: form.querySelector('#emp-fecha-resolucion').value,
     clave_tecnica: form.querySelector('#emp-clave').value,
     tipo_ambiente: form.querySelector('#emp-ambiente').value,
-    url_dian: form.querySelector('#emp-url-dian').value,
     nombre_marca: form.querySelector('#emp-nombre-marca')?.value || 'ERP',
     logo_data: form.querySelector('#emp-logo-data')?.value || '',
     color_primario: form.querySelector('#emp-color-primario')?.value || '#0070f2',

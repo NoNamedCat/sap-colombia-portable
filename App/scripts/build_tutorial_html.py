@@ -476,6 +476,9 @@ html_content = """<!DOCTYPE html>
       <li><a href="#paso-17">17. Consola de Empresas y Usuarios</a></li>
       <li><a href="#paso-18">18. Permisos y Control Antifraude SoD</a></li>
       <li><a href="#vistas-roles">19. Vistas según el Cargo del Usuario</a></li>
+
+      <li class="menu-section">Portabilidad, BD y Servidor DIAN</li>
+      <li><a href="#paso-20">20. Script de Configuración, BD y DIAN</a></li>
       <li><a href="#credenciales">🔑 Cuentas y Contraseñas de Prueba</a></li>
     </ul>
   </nav>
@@ -1230,6 +1233,98 @@ html_content = """<!DOCTYPE html>
         <div class="screenshot-caption">
           <span>Vista Recursos Humanos: Gestión exclusiva de personal y liquidación de nómina.</span>
           <span>🔍 Clic para ampliar</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- PASO 20: SCRIPT UNIFICADO DE PORTABILIDAD, BASE DE DATOS Y ENTORNO GLOBAL -->
+    <section class="module-card" id="paso-20">
+      <div class="module-header">
+        <h2>Paso 20. Cómo Usar el Script de Configuración, Portabilidad y Entorno Global</h2>
+        <span class="module-tag">Linux & Windows · Pruebas vs. Producción</span>
+      </div>
+      <p>El proyecto incluye un <strong>Panel de Control y Portabilidad Todo-en-Uno</strong> que separa limpiamente el <strong>Entorno de Pruebas (Simulador Local)</strong> del <strong>Entorno de Trabajo Real (Servidor DIAN)</strong> a nivel global, además de permitirte alternar entre la <strong>Base de Datos Portable</strong> (guardada dentro de <code>Data/</code>) o un <strong>PostgreSQL Externo</strong>.</p>
+
+      <h3 style="margin:18px 0 10px 0; color:#0f172a;">🚀 1. Cómo Abrir el Panel de Configuración o Arrancar Directamente</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Acción</th>
+            <th>En Linux</th>
+            <th>En Windows (10 / 11)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Abrir el Panel de Configuración</strong> (Base de Datos, Entorno DIAN, Respaldos y Motores)</td>
+            <td>Ejecuta <code>./Configurar_ERP_Linux.sh</code></td>
+            <td>Doble clic en <code>Configurar_ERP_Windows.bat</code></td>
+          </tr>
+          <tr>
+            <td><strong>Iniciar el ERP en 1 Clic</strong> (Arranca PostgreSQL portable + Web UI en el navegador)</td>
+            <td>Ejecuta <code>./Iniciar_ERP_Linux.sh</code></td>
+            <td>Doble clic en <code>Iniciar_ERP_Windows.bat</code></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 style="margin:22px 0 10px 0; color:#0f172a;">🎛️ 2. Opciones Paso a Paso del Menú Interactivo</h3>
+      <p>Al abrir <code>./Configurar_ERP_Linux.sh</code> (Linux) o <code>Configurar_ERP_Windows.bat</code> (Windows), verás el estado actual del sistema y <strong>10 opciones numeradas</strong>:</p>
+
+      <ul class="step-list">
+        <li class="step-item">
+          <span class="step-num">1</span>
+          <div class="step-text"><strong>🚀 Iniciar el ERP Corporativo Ahora:</strong> Arranca automáticamente el motor PostgreSQL embebido (si estás en modo Portable), verifica las tablas de la base de datos activa y abre la interfaz web en <code>http://127.0.0.1:8000</code>. Al cerrar la ventana con <code>Ctrl+C</code>, apaga PostgreSQL de forma segura.</div>
+        </li>
+        <li class="step-item">
+          <span class="step-num">2</span>
+          <div class="step-text"><strong>🏠 Cambiar a Base de Datos PORTABLE Embebida (guardada en <code>Data/</code>):</strong> Guarda todas tus empresas, facturas y contabilidad dentro de la carpeta del proyecto (<code>Data/db</code> en Linux y <code>Data/db_windows</code> en Windows) usando el puerto <code>54329</code> para no chocar con ningún otro PostgreSQL instalado.</div>
+        </li>
+        <li class="step-item">
+          <span class="step-num">3</span>
+          <div class="step-text"><strong>🌐 Cambiar a Servidor PostgreSQL EXTERNO (Red Local / Nube / Docker):</strong> Te pide el <em>Host/IP</em> (ej. <code>192.168.1.50</code> o RDS), <em>Puerto</em> (<code>5432</code>), <em>Usuario</em>, <em>Contraseña</em> y <em>Nombre de Base de Datos</em>. Prueba la conexión en vivo, crea la base de datos si no existe y guarda la configuración en <code>Data/config.json</code>.</div>
+        </li>
+        <li class="step-item">
+          <span class="step-num">4</span>
+          <div class="step-text"><strong>🏛️ Cambiar Entorno Global (🧪 Pruebas Mockup vs. 🚀 Trabajo Real DIAN):</strong> Separa por completo las pruebas del trabajo real con aislamiento total de base de datos:
+            <br>• <strong>🧪 Entorno de Pruebas (Simulador Mockup Local):</strong> Usa la base de datos de pruebas (<code>sap_colombia_pruebas</code>) y el simulador local, sin tocar internet ni alterar los registros de producción.
+            <br>• <strong>🚀 Entorno de Trabajo Real (Servidor Oficial DIAN):</strong> Conecta a la base de datos de producción (<code>sap_colombia</code>) y transmite directamente a los Web Services SOAP oficiales de la DIAN (<code>vpfe.dian.gov.co</code> o <code>vpfe-hab.dian.gov.co</code>).</div>
+        </li>
+        <li class="step-item">
+          <span class="step-num">5</span>
+          <div class="step-text"><strong>🔁 Migrar / Clonar BD REAL  ➜  BD de PRUEBAS (Sandbox Seguro):</strong> Copia con un solo clic el 100% de la base de datos real (empresas, clientes, productos, cuentas PUC, facturas, etc.) sobre la base de datos de pruebas. La base de datos real solo se lee, por lo que nunca se compromete tu información real.</div>
+        </li>
+        <li class="step-item">
+          <span class="step-num">6</span>
+          <div class="step-text"><strong>🧹 Reiniciar BD de PRUEBAS (Limpiar datos de pruebas):</strong> Vacía la base de datos de pruebas para empezar desde cero con datos limpios de demostración cuando lo necesites.</div>
+        </li>
+        <li class="step-item">
+          <span class="step-num">7</span>
+          <div class="step-text"><strong>📦 Portabilizar / Descargar Motores (Linux + Windows para USB):</strong> Descarga y empaqueta automáticamente PostgreSQL 17.2 y Python 3.12 + librerías nativas para Linux (<code>App/engine/linux</code>, <code>App/runtime/linux</code>) y Windows (<code>App/engine/windows</code>, <code>App/runtime/windows</code>).</div>
+        </li>
+        <li class="step-item">
+          <span class="step-num">8</span>
+          <div class="step-text"><strong>💾 Exportar Respaldo Universal de Datos:</strong> Exporta todas las tablas de la base de datos activa a un archivo neutro <code>Data/backups/respaldo_universal.json</code>.</div>
+        </li>
+        <li class="step-item">
+          <span class="step-num">9</span>
+          <div class="step-text"><strong>📥 Importar / Restaurar Respaldo Universal:</strong> Restaura el archivo <code>Data/backups/respaldo_universal.json</code> en la base de datos activa. Es la forma ideal de pasar tus datos entre Linux, Windows o hacia un servidor PostgreSQL externo.</div>
+        </li>
+        <li class="step-item">
+          <span class="step-num">10</span>
+          <div class="step-text"><strong>🔧 Cambiar Puerto Web HTTP / Acceso desde Red Local (LAN):</strong> Te permite cambiar el puerto web (por defecto <code>8000</code>) y habilitar el acceso en red local (<code>0.0.0.0</code>) para que otros computadores de la oficina entren desde su navegador.</div>
+        </li>
+      </ul>
+
+      <div class="alert alert-info">
+        <div>💡</div>
+        <div><strong>Comandos Directos por Terminal (Opcional):</strong> También puedes automatizar cualquier cambio sin entrar al menú interactivo ejecutando:
+          <br>• Clonar BD Real a BD de Pruebas: <code>./Configurar_ERP_Linux.sh --clone-to-test -y</code>
+          <br>• Reiniciar BD de Pruebas: <code>./Configurar_ERP_Linux.sh --reset-test-db -y</code>
+          <br>• Configurar todo el sistema para Pruebas (Simulador Local): <code>./Configurar_ERP_Linux.sh --set-dian mock</code>
+          <br>• Configurar todo el sistema para Trabajo Real (DIAN Producción): <code>./Configurar_ERP_Linux.sh --set-dian real --dian-ambiente 2</code>
+          <br>• Usar BD Portable Embebida: <code>./Configurar_ERP_Linux.sh --set-db embedded --port 54329</code>
+          <br>• Usar PostgreSQL Externo: <code>./Configurar_ERP_Linux.sh --set-db external --host 192.168.1.50 --port 5432 --user postgres --password secret --dbname sap_colombia</code>
         </div>
       </div>
     </section>

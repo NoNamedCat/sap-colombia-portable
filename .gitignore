@@ -4,4 +4,5 @@ __pycache__/
 App/engine/
 App/runtime/
 Data/db/
+Data/db_windows/
 Data/logs/

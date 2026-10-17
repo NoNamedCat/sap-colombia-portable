@@ -1,12 +1,12 @@
 @echo off
 setlocal enabledelayedexpansion
 chcp 65001 >nul 2>&1
-title ERP Corporativo Colombia - Sistema Portable Autonomo (Windows)
+title ERP Corporativo Colombia - Sistema Portable Autónomo (Windows)
 
 :: ==============================================================================
 :: LANZADOR PORTABLE WINDOWS - ERP CORPORATIVO COLOMBIA (DIAN UBL 2.1)
-:: Delega al Gestor Unificado (soporta BD Portable en Data\db_windows
-:: o PostgreSQL Externo configurado en Data\config.json).
+:: Inicia el sistema ERP en 1 clic delegando en gestor_sistema.py (--start).
+:: Soporta BD Portable en Data\db_windows o PostgreSQL Externo (Data\config.json).
 :: ==============================================================================
 
 set "BASE_DIR=%~dp0"
@@ -18,5 +18,5 @@ if not exist "%PY_EXE%" (
     powershell -NoProfile -ExecutionPolicy Bypass -File "%APP_DIR%\scripts\portabilizar_windows.ps1"
 )
 
-"%PY_EXE%" "%APP_DIR%\scripts\portabilizar_entorno.py" --start
+"%PY_EXE%" "%APP_DIR%\scripts\gestor_sistema.py" --start %*
 pause

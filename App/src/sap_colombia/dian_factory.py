@@ -17,17 +17,7 @@ _mock_server: DianMockServer | None = None
 
 
 def get_dian_client(emisor_nit: str = "", empresa: dict | None = None) -> DianClient | DianSoapClient:
-    """Devuelve el cliente DIAN apropiado según la configuración.
-
-    Args:
-        emisor_nit: NIT del emisor (solo necesario en modo ``mock``).
-        empresa: Datos de la empresa emisora (rango de numeración, ambiente).
-            El mock los usa para validar lo mismo que validaría la DIAN.
-
-    Returns:
-        Instancia de ``DianClient`` (mock REST), ``DianSoapClient`` (real WCF),
-        o mock SOAP si se configura ``SAP_DIAN_MODE=mock_soap``.
-    """
+    """Devuelve el cliente DIAN según el modo global del sistema (``mock`` vs ``real``)."""
     mode = config.dian_mode()
     if mode == "mock_soap":
         return get_mock_soap_client(emisor_nit, empresa)

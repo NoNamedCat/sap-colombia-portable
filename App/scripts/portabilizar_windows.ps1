@@ -43,9 +43,9 @@ if (-Not (Test-Path $PyExe)) {
     Remove-Item $GetPip -Force -ErrorAction SilentlyContinue
 }
 
-# 2. Ejecutar portabilizar_entorno.py con el Python portable para instalar wheels y PostgreSQL 17.2 Windows
+# 2. Ejecutar gestor_sistema.py con el Python portable para instalar wheels y PostgreSQL 17.2 Windows
 Write-Host "[3/3] Descargando PostgreSQL 17.2 Portable y librerias en App\..." -ForegroundColor Yellow
-$PortScript = Join-Path $ScriptDir "portabilizar_entorno.py"
+$PortScript = Join-Path $ScriptDir "gestor_sistema.py"
 & $PyExe $PortScript --target windows
 
 Write-Host "✅ Entorno Windows 100% portabilizado en App\engine\windows y App\runtime\windows" -ForegroundColor Green

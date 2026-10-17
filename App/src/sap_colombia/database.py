@@ -796,9 +796,23 @@ def _schema_sql() -> str:
     """
 
 
+def get_active_dsn() -> str:
+    return os.environ.get("SAP_PG_DSN") or _sap_config.pg_dsn()
+
+
+def get_active_dbname() -> str:
+    dsn = get_active_dsn()
+    try:
+        from urllib.parse import urlparse
+        p = urlparse(dsn)
+        return p.path.lstrip("/") or "sap_colombia"
+    except Exception:
+        return "sap_colombia"
+
+
 def get_connection() -> psycopg2.extensions.connection:
-    # Conectar a PostgreSQL usando el DSN
-    dsn = PG_DSN
+    # Conectar a PostgreSQL usando el DSN activo dinámico
+    dsn = get_active_dsn()
     connection = dbutil.get_conn(dsn)
     return connection
 
