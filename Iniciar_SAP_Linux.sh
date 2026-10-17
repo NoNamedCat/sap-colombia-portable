@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# LANZADOR PORTABLE LINUX - ERP SAP COLOMBIA
-# 100% Autónomo: Arranca PostgreSQL embebido y Servidor Web/API
+# LANZADOR PORTABLE LINUX - ERP CORPORATIVO COLOMBIA
+# 100% Autónomo: Auto-descarga PostgreSQL 17 + Python 3.12 si no están presentes,
+# inicializa la base de datos y arranca el servidor Web/API.
 # ==============================================================================
 
 set -e
 
-# Detectar directorio base del portable
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="${BASE_DIR}/App"
 DATA_DIR="${BASE_DIR}/Data"
@@ -14,19 +14,30 @@ DB_DIR="${DATA_DIR}/db"
 LOGS_DIR="${DATA_DIR}/logs"
 PG_BIN="${APP_DIR}/engine/linux/bin"
 PG_LIB="${APP_DIR}/engine/linux/lib"
-PG_SHARE="${APP_DIR}/engine/linux/share"
 
 mkdir -p "${LOGS_DIR}"
 chmod 0700 "${DB_DIR}" 2>/dev/null || true
+
+# 0. Auto-portabilizar si faltan los binarios embebidos de PostgreSQL o Python
+if [ ! -x "${PG_BIN}/postgres" ] || [ ! -x "${APP_DIR}/runtime/linux/bin/python3" ]; then
+    echo "📦 Detectando primer arranque sin binarios portables en App/..."
+    echo "⬇️  Descargando y configurando PostgreSQL 17.2 + Python 3.12 Portable automáticamente..."
+    python3 "${APP_DIR}/scripts/portabilizar_entorno.py" --target linux
+fi
 
 export LD_LIBRARY_PATH="${PG_LIB}:${LD_LIBRARY_PATH:-}"
 export PGSYSCONFDIR="${DATA_DIR}"
 export PGDATA="${DB_DIR}"
 
+PYTHON_BIN="${APP_DIR}/runtime/linux/bin/python3"
+if [ ! -x "${PYTHON_BIN}" ]; then
+    PYTHON_BIN="python3"
+fi
+
 # Leer configuración desde Data/config.json (con valores por defecto seguros)
 CONFIG_FILE="${DATA_DIR}/config.json"
-if [ -f "${CONFIG_FILE}" ] && command -v python3 >/dev/null 2>&1; then
-    eval "$(python3 - "${CONFIG_FILE}" <<'PYEOF'
+if [ -f "${CONFIG_FILE}" ]; then
+    eval "$("${PYTHON_BIN}" - "${CONFIG_FILE}" <<'PYEOF'
 import json, sys
 try:
     with open(sys.argv[1]) as f:
@@ -51,11 +62,12 @@ DB_USER="${DB_USER:-sap}"
 DB_NAME="${DB_NAME:-sap_colombia}"
 
 echo "=================================================================="
-echo " 🚀 ERP SAP COLOMBIA - SISTEMA PORTABLE AUTÓNOMO (LINUX)"
+echo " 🚀 ERP CORPORATIVO COLOMBIA - SISTEMA PORTABLE AUTÓNOMO (LINUX)"
 echo "=================================================================="
 echo "📂 Directorio Base : ${BASE_DIR}"
 echo "💾 Datos & BD      : ${DATA_DIR}"
 echo "⚙️  Motor Embebido  : PostgreSQL 17 (Puerto ${DB_PORT}, BD ${DB_NAME})"
+echo "🐍 Python Runtime  : ${PYTHON_BIN}"
 echo "🌐 Servidor Web    : http://${HTTP_HOST}:${HTTP_PORT}"
 echo "=================================================================="
 
@@ -80,12 +92,17 @@ else
     echo "ℹ️  Motor PostgreSQL ya se encontraba en ejecución."
 fi
 
-# 3. Asegurar que la base de datos exista (necesario cuando Data/db se inicializa desde cero)
-if ! "${PG_BIN}/psql" -h 127.0.0.1 -p "${DB_PORT}" -U "${DB_USER}" -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = '${DB_NAME}'" | grep -q 1; then
-    echo "🗄️  Creando base de datos '${DB_NAME}'..."
-    "${PG_BIN}/createdb" -h 127.0.0.1 -p "${DB_PORT}" -U "${DB_USER}" "${DB_NAME}"
-    echo "✅ Base de datos '${DB_NAME}' creada."
-fi
+# 3. Exportar variables de entorno para la aplicación Python
+export SAP_DB_HOST="127.0.0.1"
+export SAP_DB_PORT="${DB_PORT}"
+export SAP_DB_USER="${DB_USER}"
+export SAP_DB_PASSWORD=""
+export SAP_DB_NAME="${DB_NAME}"
+export SAP_PG_DSN="postgresql://${DB_USER}@127.0.0.1:${DB_PORT}/${DB_NAME}"
+export PORT="${HTTP_PORT}"
+
+# 4. Asegurar que la base de datos exista
+"${PYTHON_BIN}" "${APP_DIR}/scripts/portabilizar_entorno.py" --ensure-db
 
 # Función de apagado limpio al salir con Ctrl+C o cerrar terminal
 cleanup() {
@@ -94,20 +111,10 @@ cleanup() {
     if [ "${STARTED_PG}" -eq 1 ]; then
         "${PG_BIN}/pg_ctl" -D "${DB_DIR}" -w stop || true
     fi
-    echo "👋 ERP SAP Colombia cerrado de forma segura."
+    echo "👋 ERP Corporativo Colombia cerrado de forma segura."
     exit 0
 }
 trap cleanup SIGINT SIGTERM EXIT
-
-# 4. Exportar variables de entorno para la aplicación Python
-export SAP_PG_DSN="postgresql://${DB_USER}@127.0.0.1:${DB_PORT}/${DB_NAME}"
-export PORT="${HTTP_PORT}"
-
-# Seleccionar runtime Python (embebido si existe, o python3 del sistema)
-PYTHON_BIN="python3"
-if [ -x "${APP_DIR}/runtime/linux/bin/python3" ]; then
-    PYTHON_BIN="${APP_DIR}/runtime/linux/bin/python3"
-fi
 
 # Abrir el navegador automáticamente en segundo plano después de 1 segundo
 (sleep 1.2 && (xdg-open "http://127.0.0.1:${HTTP_PORT}" > /dev/null 2>&1 || sensible-browser "http://127.0.0.1:${HTTP_PORT}" > /dev/null 2>&1 || true)) &
@@ -118,4 +125,3 @@ echo "------------------------------------------------------------------"
 # 5. Ejecutar el servidor Python dentro de App/src
 cd "${APP_DIR}/src"
 "${PYTHON_BIN}" web_server.py "${HTTP_PORT}" "0.0.0.0"
-

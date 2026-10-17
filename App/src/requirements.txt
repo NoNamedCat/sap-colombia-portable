@@ -1,7 +1,7 @@
-psycopg2>=2.9
+psycopg2-binary>=2.9
 pyjwt>=2.7
-pytest>=9.0
 cryptography>=41.0
 lxml>=5.0
 qrcode>=7.0
-playwright>=1.40
+reportlab>=4.0
+pytest>=8.0
