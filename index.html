@@ -1254,20 +1254,20 @@
         </thead>
         <tbody>
           <tr>
-            <td><strong>Abrir el Menú de Configuración</strong> (Base de Datos, Entorno DIAN, Respaldos y Motores)</td>
-            <td>Ejecuta <code>./Portabilizar_Todo.sh</code></td>
-            <td>Doble clic en <code>Portabilizar_Windows.bat</code></td>
+            <td><strong>Abrir el Panel de Configuración</strong> (Base de Datos, Entorno DIAN, Respaldos y Motores)</td>
+            <td>Ejecuta <code>./Configurar_ERP_Linux.sh</code></td>
+            <td>Doble clic en <code>Configurar_ERP_Windows.bat</code></td>
           </tr>
           <tr>
             <td><strong>Iniciar el ERP en 1 Clic</strong> (Arranca PostgreSQL portable + Web UI en el navegador)</td>
-            <td>Ejecuta <code>./Iniciar_SAP_Linux.sh</code></td>
-            <td>Doble clic en <code>Iniciar_SAP_Windows.bat</code></td>
+            <td>Ejecuta <code>./Iniciar_ERP_Linux.sh</code></td>
+            <td>Doble clic en <code>Iniciar_ERP_Windows.bat</code></td>
           </tr>
         </tbody>
       </table>
 
       <h3 style="margin:22px 0 10px 0; color:#0f172a;">🎛️ 2. Opciones Paso a Paso del Menú Interactivo</h3>
-      <p>Al abrir <code>./Portabilizar_Todo.sh</code> (Linux) o <code>Portabilizar_Windows.bat</code> (Windows), verás el estado actual del sistema y <strong>10 opciones numeradas</strong>:</p>
+      <p>Al abrir <code>./Configurar_ERP_Linux.sh</code> (Linux) o <code>Configurar_ERP_Windows.bat</code> (Windows), verás el estado actual del sistema y <strong>10 opciones numeradas</strong>:</p>
 
       <ul class="step-list">
         <li class="step-item">
@@ -1317,12 +1317,12 @@
       <div class="alert alert-info">
         <div>💡</div>
         <div><strong>Comandos Directos por Terminal (Opcional):</strong> También puedes automatizar cualquier cambio sin entrar al menú interactivo ejecutando:
-          <br>• Clonar BD Real a BD de Pruebas: <code>./Portabilizar_Todo.sh --clone-to-test -y</code>
-          <br>• Reiniciar BD de Pruebas: <code>./Portabilizar_Todo.sh --reset-test-db -y</code>
-          <br>• Configurar todo el sistema para Pruebas (Simulador Local): <code>./Portabilizar_Todo.sh --set-dian mock</code>
-          <br>• Configurar todo el sistema para Trabajo Real (DIAN Producción): <code>./Portabilizar_Todo.sh --set-dian real --dian-ambiente 2</code>
-          <br>• Usar BD Portable Embebida: <code>./Portabilizar_Todo.sh --set-db embedded --port 54329</code>
-          <br>• Usar PostgreSQL Externo: <code>./Portabilizar_Todo.sh --set-db external --host 192.168.1.50 --port 5432 --user postgres --password secret --dbname sap_colombia</code>
+          <br>• Clonar BD Real a BD de Pruebas: <code>./Configurar_ERP_Linux.sh --clone-to-test -y</code>
+          <br>• Reiniciar BD de Pruebas: <code>./Configurar_ERP_Linux.sh --reset-test-db -y</code>
+          <br>• Configurar todo el sistema para Pruebas (Simulador Local): <code>./Configurar_ERP_Linux.sh --set-dian mock</code>
+          <br>• Configurar todo el sistema para Trabajo Real (DIAN Producción): <code>./Configurar_ERP_Linux.sh --set-dian real --dian-ambiente 2</code>
+          <br>• Usar BD Portable Embebida: <code>./Configurar_ERP_Linux.sh --set-db embedded --port 54329</code>
+          <br>• Usar PostgreSQL Externo: <code>./Configurar_ERP_Linux.sh --set-db external --host 192.168.1.50 --port 5432 --user postgres --password secret --dbname sap_colombia</code>
         </div>
       </div>
     </section>
