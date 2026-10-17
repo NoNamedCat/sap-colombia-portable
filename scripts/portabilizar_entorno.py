@@ -94,6 +94,7 @@ def load_config() -> dict:
             "user": "sap",
             "password": "",
             "dbname": "sap_colombia",
+            "test_dbname": "",
             "sslmode": "",
             "dsn": "",
         },
@@ -321,7 +322,7 @@ def ensure_database_exists(db_cfg: dict | None = None):
     from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
     if db_cfg is None:
-        db_cfg = load_config()["database"]
+        db_cfg = active_db_cfg()
 
     dbname = db_cfg.get("dbname") or os.environ.get("SAP_DB_NAME") or "sap_colombia"
     target_dsn = build_dsn_from_cfg(db_cfg)
@@ -347,6 +348,203 @@ def ensure_database_exists(db_cfg: dict | None = None):
     return True
 
 
+# ------------------------------------------------------------------------------
+# Separación de bases de datos: PRUEBAS vs REAL
+# ------------------------------------------------------------------------------
+def is_test_mode(cfg: dict | None = None) -> bool:
+    cfg = cfg or load_config()
+    return cfg.get("dian", {}).get("mode") != "real"
+
+
+def real_dbname(cfg: dict) -> str:
+    return cfg["database"].get("dbname") or "sap_colombia"
+
+
+def test_dbname(cfg: dict) -> str:
+    name = (cfg["database"].get("test_dbname") or "").strip()
+    return name or f"{real_dbname(cfg)}_pruebas"
+
+
+def db_cfg_for(cfg: dict, which: str) -> dict:
+    """Devuelve una copia de la configuración de BD apuntando a 'real' o 'test'."""
+    db = dict(cfg["database"])
+    db["dbname"] = test_dbname(cfg) if which == "test" else real_dbname(cfg)
+    if which == "test":
+        db["dsn"] = ""  # un DSN personalizado siempre apunta a la BD real
+    return db
+
+
+def active_db_cfg(cfg: dict | None = None) -> dict:
+    """BD que usa el ERP según el entorno global: pruebas -> BD de pruebas; real -> BD real."""
+    cfg = cfg or load_config()
+    return db_cfg_for(cfg, "test" if is_test_mode(cfg) else "real")
+
+
+def clone_real_to_test(assume_yes: bool = False) -> bool:
+    """Copia TODA la base de datos real sobre la base de datos de pruebas.
+
+    La BD real solo se LEE; la BD de pruebas se borra y se recrea.
+    1) Intento rápido: CREATE DATABASE <pruebas> TEMPLATE <real> (copia binaria exacta).
+    2) Si la BD real tiene conexiones activas (ERP en ejecución), copia tabla por tabla
+       con COPY, preservando el esquema y reajustando las secuencias.
+    """
+    import io as _io
+    import psycopg2
+    from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+
+    cfg = load_config()
+    src_cfg = db_cfg_for(cfg, "real")
+    dst_cfg = db_cfg_for(cfg, "test")
+    src, dst = src_cfg["dbname"], dst_cfg["dbname"]
+    if src == dst:
+        print("⛔ La BD de pruebas no puede tener el mismo nombre que la BD real.")
+        return False
+
+    print(f"\n🔁 Migrar BD REAL '{src}'  ➜  BD de PRUEBAS '{dst}'")
+    print(f"   ⚠️  Todo el contenido actual de '{dst}' será reemplazado. '{src}' NO se modifica.")
+    if not assume_yes:
+        ok = input("   ¿Continuar? escribe 'si' para confirmar: ").strip().lower()
+        if ok not in ("si", "sí", "s", "y", "yes"):
+            print("   Operación cancelada.")
+            return False
+
+    ensure_database_exists(src_cfg)
+    admin = psycopg2.connect(build_dsn_from_cfg(src_cfg, override_dbname="postgres"))
+    admin.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+    acur = admin.cursor()
+
+    # Cerrar conexiones a la BD de pruebas y eliminarla
+    acur.execute(
+        "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
+        "WHERE datname = %s AND pid <> pg_backend_pid()", (dst,)
+    )
+    acur.execute(f'DROP DATABASE IF EXISTS "{dst}"')
+
+    # 1) Copia binaria vía TEMPLATE
+    try:
+        acur.execute(f'CREATE DATABASE "{dst}" TEMPLATE "{src}" ENCODING \'UTF8\'')
+        acur.close()
+        admin.close()
+        print(f"✅ BD de pruebas '{dst}' clonada exactamente desde '{src}' (TEMPLATE).")
+        return True
+    except psycopg2.Error as e:
+        print(f"ℹ️  Copia rápida no disponible ({str(e).strip().splitlines()[0]}). Usando copia tabla por tabla...")
+        acur.execute(f'DROP DATABASE IF EXISTS "{dst}"')
+        acur.execute(f'CREATE DATABASE "{dst}" ENCODING \'UTF8\'')
+    acur.close()
+    admin.close()
+
+    # 2) Crear el esquema del ERP en la BD de pruebas
+    dst_dsn = build_dsn_from_cfg(dst_cfg)
+    sys.path.insert(0, os.path.join(APP_DIR, "src"))
+    prev_dsn = os.environ.get("SAP_PG_DSN")
+    os.environ["SAP_PG_DSN"] = dst_dsn
+    try:
+        from sap_colombia import database as sap_db
+        if hasattr(sap_db, "init_db"):
+            sap_db.init_db(seed=False)
+        elif hasattr(sap_db, "inicializar_base_datos"):
+            sap_db.inicializar_base_datos()
+    finally:
+        if prev_dsn is None:
+            os.environ.pop("SAP_PG_DSN", None)
+        else:
+            os.environ["SAP_PG_DSN"] = prev_dsn
+
+    s_conn = psycopg2.connect(build_dsn_from_cfg(src_cfg))
+    s_conn.set_session(readonly=True)
+    d_conn = psycopg2.connect(dst_dsn)
+    s_cur, d_cur = s_conn.cursor(), d_conn.cursor()
+
+    s_cur.execute(
+        "SELECT table_name FROM information_schema.tables "
+        "WHERE table_schema='public' AND table_type='BASE TABLE' ORDER BY table_name"
+    )
+    tables = [r[0] for r in s_cur.fetchall()]
+    d_cur.execute(
+        "SELECT table_name FROM information_schema.tables "
+        "WHERE table_schema='public' AND table_type='BASE TABLE'"
+    )
+    dst_tables = {r[0] for r in d_cur.fetchall()}
+
+    # Desactivar FKs/triggers durante la carga (requiere superusuario; en BD portable lo es)
+    try:
+        d_cur.execute("SET session_replication_role = replica")
+    except psycopg2.Error:
+        d_conn.rollback()
+
+    if dst_tables:
+        d_cur.execute("TRUNCATE " + ", ".join(f'"{t}"' for t in dst_tables) + " RESTART IDENTITY CASCADE")
+
+    total = 0
+    for t in tables:
+        if t not in dst_tables:
+            continue
+        # Solo columnas comunes, en el orden de la BD real
+        s_cur.execute(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_schema='public' AND table_name=%s ORDER BY ordinal_position", (t,)
+        )
+        s_cols = [r[0] for r in s_cur.fetchall()]
+        d_cur.execute(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_schema='public' AND table_name=%s", (t,)
+        )
+        d_cols = {r[0] for r in d_cur.fetchall()}
+        cols = ", ".join(f'"{c}"' for c in s_cols if c in d_cols)
+        buf = _io.StringIO()
+        s_cur.copy_expert(f'COPY "{t}" ({cols}) TO STDOUT', buf)
+        buf.seek(0)
+        d_cur.copy_expert(f'COPY "{t}" ({cols}) FROM STDIN', buf)
+        total += d_cur.rowcount if d_cur.rowcount and d_cur.rowcount > 0 else 0
+
+    # Reajustar secuencias (serial / identity) al MAX(id) copiado
+    d_cur.execute(
+        "SELECT table_name, column_name FROM information_schema.columns "
+        "WHERE table_schema='public' AND (column_default LIKE 'nextval(%%' OR is_identity='YES')"
+    )
+    for t, c in d_cur.fetchall():
+        d_cur.execute("SELECT pg_get_serial_sequence(%s, %s)", (f'public."{t}"', c))
+        seq = d_cur.fetchone()[0]
+        if seq:
+            d_cur.execute(
+                f'SELECT setval(%s, COALESCE((SELECT MAX("{c}") FROM "{t}"), 0) + 1, false)', (seq,)
+            )
+
+    d_conn.commit()
+    s_cur.close(); d_cur.close(); s_conn.close(); d_conn.close()
+    print(f"✅ BD de pruebas '{dst}' poblada desde '{src}' ({len(tables)} tablas, {total} registros).")
+    return True
+
+
+def reset_test_db(assume_yes: bool = False) -> bool:
+    """Borra la BD de pruebas y la deja vacía (esquema limpio)."""
+    import psycopg2
+    from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+
+    cfg = load_config()
+    dst_cfg = db_cfg_for(cfg, "test")
+    dst = dst_cfg["dbname"]
+    if not assume_yes:
+        ok = input(f"⚠️  Se borrará por completo la BD de pruebas '{dst}'. Escribe 'si' para confirmar: ").strip().lower()
+        if ok not in ("si", "sí", "s", "y", "yes"):
+            print("   Operación cancelada.")
+            return False
+    admin = psycopg2.connect(build_dsn_from_cfg(dst_cfg, override_dbname="postgres"))
+    admin.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+    cur = admin.cursor()
+    cur.execute(
+        "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
+        "WHERE datname = %s AND pid <> pg_backend_pid()", (dst,)
+    )
+    cur.execute(f'DROP DATABASE IF EXISTS "{dst}"')
+    cur.execute(f'CREATE DATABASE "{dst}" ENCODING \'UTF8\'')
+    cur.close()
+    admin.close()
+    print(f"✅ BD de pruebas '{dst}' reiniciada (vacía). El ERP creará el esquema y datos demo al iniciar.")
+    return True
+
+
 def export_universal_backup(custom_path: str | None = None) -> str:
     """Exporta todas las tablas de la base de datos activa a un archivo JSON portable universal."""
     import psycopg2
@@ -354,7 +552,7 @@ def export_universal_backup(custom_path: str | None = None) -> str:
 
     os.makedirs(BACKUPS_DIR, exist_ok=True)
     cfg = load_config()
-    dsn = build_dsn_from_cfg(cfg["database"])
+    dsn = build_dsn_from_cfg(active_db_cfg(cfg))
     conn = psycopg2.connect(dsn, cursor_factory=psycopg2.extras.RealDictCursor)
     cur = conn.cursor()
 
@@ -400,14 +598,17 @@ def import_universal_backup(custom_path: str | None = None) -> None:
         dump_data = json.load(f)
 
     cfg = load_config()
-    ensure_database_exists(cfg["database"])
-    dsn = build_dsn_from_cfg(cfg["database"])
+    ensure_database_exists(active_db_cfg(cfg))
+    dsn = build_dsn_from_cfg(active_db_cfg(cfg))
 
     # Asegurar que el esquema esté creado antes de importar
     sys.path.insert(0, os.path.join(APP_DIR, "src"))
     os.environ["SAP_PG_DSN"] = dsn
     from sap_colombia import database as sap_db
-    sap_db.inicializar_base_datos()
+    if hasattr(sap_db, "init_db"):
+        sap_db.init_db(seed=False)
+    elif hasattr(sap_db, "inicializar_base_datos"):
+        sap_db.inicializar_base_datos()
 
     conn = psycopg2.connect(dsn)
     cur = conn.cursor()
@@ -435,10 +636,83 @@ def import_universal_backup(custom_path: str | None = None) -> None:
 # ==============================================================================
 # 3. ARRANQUE UNIFICADO DEL SISTEMA (EMBEBIDO O EXTERNO)
 # ==============================================================================
+def ensure_db_server_running(cfg: dict | None = None):
+    """Arranca el motor PostgreSQL portable si corresponde.
+
+    Devuelve (started, pg_ctl_bin, db_dir). En modo externo no hace nada.
+    """
+    cfg = cfg or load_config()
+    db_cfg = cfg["database"]
+    if db_cfg.get("engine", "embedded_postgresql") != "embedded_postgresql":
+        return False, None, None
+
+    win = is_windows_os()
+    os.makedirs(LOGS_DIR, exist_ok=True)
+    db_port = int(db_cfg.get("port", 54329))
+    db_user = db_cfg.get("user", "sap")
+    if win:
+        setup_windows_postgres()
+        pg_bin_dir = os.path.join(APP_DIR, "engine", "windows", "bin")
+        initdb_bin = os.path.join(pg_bin_dir, "initdb.exe")
+        pg_ctl_bin = os.path.join(pg_bin_dir, "pg_ctl.exe")
+        db_dir = os.path.join(DATA_DIR, "db_windows")
+    else:
+        setup_linux_postgres()
+        pg_bin_dir = os.path.join(APP_DIR, "engine", "linux", "bin")
+        pg_lib_dir = os.path.join(APP_DIR, "engine", "linux", "lib")
+        os.environ["LD_LIBRARY_PATH"] = f"{pg_lib_dir}:{os.environ.get('LD_LIBRARY_PATH', '')}"
+        initdb_bin = os.path.join(pg_bin_dir, "initdb")
+        pg_ctl_bin = os.path.join(pg_bin_dir, "pg_ctl")
+        db_dir = os.path.join(DATA_DIR, "db")
+
+    os.makedirs(db_dir, exist_ok=True)
+    if not win:
+        try:
+            os.chmod(db_dir, 0o700)
+        except Exception:
+            pass
+
+    if not os.path.isfile(os.path.join(db_dir, "PG_VERSION")):
+        print(f"📦 Inicializando cluster de Base de Datos Portable en: {db_dir}...")
+        init_cmd = [initdb_bin, "-D", db_dir, "-U", db_user, "--auth=trust", "-E", "UTF8"]
+        if win:
+            init_cmd.append("--no-locale")
+        with open(os.path.join(LOGS_DIR, "initdb.log"), "w") as logf:
+            subprocess.run(init_cmd, stdout=logf, stderr=subprocess.STDOUT, check=True)
+        print("✅ Cluster portable inicializado.")
+
+    status_res = subprocess.run([pg_ctl_bin, "-D", db_dir, "status"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if status_res.returncode == 0:
+        print("ℹ️  Motor PostgreSQL Portable ya se encontraba en ejecución.")
+        return False, pg_ctl_bin, db_dir
+
+    print(f"⚡ Arrancando motor PostgreSQL Portable en puerto {db_port}...")
+    pg_log = os.path.join(LOGS_DIR, "postgres.log")
+    pg_opts = f"-p {db_port} -h 127.0.0.1" if win else f"-p {db_port} -k {db_dir}"
+    subprocess.run([pg_ctl_bin, "-D", db_dir, "-l", pg_log, "-o", pg_opts, "-w", "start"], check=True)
+    print("✅ Motor PostgreSQL Portable activo.")
+    return True, pg_ctl_bin, db_dir
+
+
+def stop_db_server(started: bool, pg_ctl_bin: str | None, db_dir: str | None) -> None:
+    if started and pg_ctl_bin and db_dir:
+        subprocess.run([pg_ctl_bin, "-D", db_dir, "-m", "fast", "-w", "stop"],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def with_db_server(fn, *args, **kwargs):
+    """Ejecuta fn con el motor de BD disponible y lo apaga después si lo arrancamos aquí."""
+    started, pg_ctl_bin, db_dir = ensure_db_server_running()
+    try:
+        return fn(*args, **kwargs)
+    finally:
+        stop_db_server(started, pg_ctl_bin, db_dir)
+
+
 def start_erp_system():
     cfg = load_config()
     srv_cfg = cfg["server"]
-    db_cfg = cfg["database"]
+    db_cfg = active_db_cfg(cfg)
     engine_mode = db_cfg.get("engine", "embedded_postgresql")
     http_host = srv_cfg.get("host", "127.0.0.1")
     http_port = int(srv_cfg.get("http_port", 8000))
@@ -460,58 +734,9 @@ def start_erp_system():
         if not os.path.isfile(py_bin):
             py_bin = sys.executable
 
-    started_embedded_pg = False
-    pg_ctl_bin = None
-    db_dir = None
-
+    started_embedded_pg, pg_ctl_bin, db_dir = ensure_db_server_running(cfg)
     if engine_mode == "embedded_postgresql":
         db_cfg["host"] = "127.0.0.1"
-        db_port = int(db_cfg.get("port", 54329))
-        db_user = db_cfg.get("user", "sap")
-        if win:
-            setup_windows_postgres()
-            pg_bin_dir = os.path.join(APP_DIR, "engine", "windows", "bin")
-            initdb_bin = os.path.join(pg_bin_dir, "initdb.exe")
-            pg_ctl_bin = os.path.join(pg_bin_dir, "pg_ctl.exe")
-            db_dir = os.path.join(DATA_DIR, "db_windows")
-        else:
-            setup_linux_postgres()
-            pg_bin_dir = os.path.join(APP_DIR, "engine", "linux", "bin")
-            pg_lib_dir = os.path.join(APP_DIR, "engine", "linux", "lib")
-            os.environ["LD_LIBRARY_PATH"] = f"{pg_lib_dir}:{os.environ.get('LD_LIBRARY_PATH', '')}"
-            initdb_bin = os.path.join(pg_bin_dir, "initdb")
-            pg_ctl_bin = os.path.join(pg_bin_dir, "pg_ctl")
-            db_dir = os.path.join(DATA_DIR, "db")
-
-        os.makedirs(db_dir, exist_ok=True)
-        if not win:
-            try:
-                os.chmod(db_dir, 0o700)
-            except Exception:
-                pass
-
-        # 1. Inicializar cluster en Data/ si no existe
-        pg_version_file = os.path.join(db_dir, "PG_VERSION")
-        if not os.path.isfile(pg_version_file):
-            print(f"📦 Inicializando cluster de Base de Datos Portable en: {db_dir}...")
-            init_cmd = [initdb_bin, "-D", db_dir, "-U", db_user, "--auth=trust", "-E", "UTF8"]
-            if win:
-                init_cmd.append("--no-locale")
-            with open(os.path.join(LOGS_DIR, "initdb.log"), "w") as logf:
-                subprocess.run(init_cmd, stdout=logf, stderr= subprocess.STDOUT, check=True)
-            print("✅ Cluster portable inicializado.")
-
-        # 2. Iniciar PostgreSQL embebido si no está corriendo
-        status_res = subprocess.run([pg_ctl_bin, "-D", db_dir, "status"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        if status_res.returncode != 0:
-            print(f"⚡ Arrancando motor PostgreSQL Portable en puerto {db_port}...")
-            pg_log = os.path.join(LOGS_DIR, "postgres.log")
-            pg_opts = f"-p {db_port} -h 127.0.0.1" if win else f"-p {db_port} -k {db_dir}"
-            subprocess.run([pg_ctl_bin, "-D", db_dir, "-l", pg_log, "-o", pg_opts, "-w", "start"], check=True)
-            started_embedded_pg = True
-            print("✅ Motor PostgreSQL Portable activo.")
-        else:
-            print("ℹ️  Motor PostgreSQL Portable ya se encontraba en ejecución.")
     else:
         print(f"🌐 Modo PostgreSQL EXTERNO activo -> {db_cfg.get('host')}:{db_cfg.get('port')}/{db_cfg.get('dbname')}")
 
@@ -615,9 +840,13 @@ def print_status_banner():
     print(" 🎛️  PANEL DE CONTROL Y PORTABILIDAD — ERP CORPORATIVO COLOMBIA")
     print("======================================================================")
     if engine == "embedded_postgresql":
-        print(f" 🗄️  Modo Base de Datos : PORTABLE EMBEBIDA en Data/ (Puerto {db_cfg.get('port', 54329)} · BD: {db_cfg.get('dbname', 'sap_colombia')})")
+        print(f" 🗄️  Servidor de BD     : PORTABLE EMBEBIDO en Data/ (Puerto {db_cfg.get('port', 54329)})")
     else:
-        print(f" 🗄️  Modo Base de Datos : POSTGRESQL EXTERNO ({db_cfg.get('user')}@{db_cfg.get('host')}:{db_cfg.get('port')}/{db_cfg.get('dbname')})")
+        print(f" 🗄️  Servidor de BD     : POSTGRESQL EXTERNO ({db_cfg.get('user')}@{db_cfg.get('host')}:{db_cfg.get('port')})")
+    real_mark = "  ◀ ACTIVA" if dian_mode == "real" else ""
+    test_mark = "  ◀ ACTIVA" if dian_mode != "real" else ""
+    print(f" 🏢 BD Real           : {real_dbname(cfg)}{real_mark}")
+    print(f" 🧪 BD de Pruebas     : {test_dbname(cfg)}{test_mark}")
     print(f" 🏛️  Entorno Global     : {dian_label}")
     print(f" 🌐 Servidor Web HTTP  : http://{srv_cfg.get('host', '127.0.0.1')}:{srv_cfg.get('http_port', 8000)}")
     print(f" 🐧 Motor Portable Linux   : PostgreSQL [{'✅ LISTO' if linux_pg_ok else '⚠️ PENDIENTE'}] | Python [{'✅ LISTO' if linux_py_ok else '⚠️ PENDIENTE'}]")
@@ -726,6 +955,10 @@ def configure_dian_mode_interactive():
         dian_cfg["transmit_url"] = ""
         save_config(cfg)
         print("✅ Sistema configurado globalmente en: 🧪 ENTORNO DE PRUEBAS (Simulador Mockup Local).")
+        print(f"   Base de datos activa: '{test_dbname(cfg)}' (aislada de la BD real '{real_dbname(cfg)}')")
+        preg = input("\n¿Deseas clonar ahora todos los datos de la BD REAL hacia la BD de PRUEBAS? (s/n) [s]: ").strip().lower()
+        if preg in ("", "s", "si", "y", "yes"):
+            with_db_server(clone_real_to_test, assume_yes=True)
 
 
 def interactive_menu():
@@ -735,10 +968,12 @@ def interactive_menu():
         print("  2) 🏠 Cambiar a Base de Datos PORTABLE Embebida (guardada en Data/)")
         print("  3) 🌐 Cambiar a Servidor PostgreSQL EXTERNO (Red Local / Nube / Docker)")
         print("  4) 🏛️  Cambiar Entorno Global (🧪 Pruebas Mockup vs. 🚀 Trabajo Real DIAN)")
-        print("  5) 📦 Portabilizar / Descargar Motores (Linux + Windows para USB)")
-        print("  6) 💾 Exportar Respaldo Universal de Datos (Data/backups/respaldo_universal.json)")
-        print("  7) 📥 Importar / Restaurar Respaldo Universal en la Base de Datos Activa")
-        print("  8) 🔧 Cambiar Puerto Web HTTP / Acceso desde Red Local (LAN)")
+        print("  5) 🔁 Migrar / Clonar BD REAL  ➜  BD de PRUEBAS (Sandbox Seguro)")
+        print("  6) 🧹 Reiniciar BD de PRUEBAS (Limpiar datos de pruebas)")
+        print("  7) 📦 Portabilizar / Descargar Motores (Linux + Windows para USB)")
+        print("  8) 💾 Exportar Respaldo Universal de Datos (Data/backups/respaldo_universal.json)")
+        print("  9) 📥 Importar / Restaurar Respaldo Universal en la Base de Datos Activa")
+        print("  10) 🔧 Cambiar Puerto Web HTTP / Acceso desde Red Local (LAN)")
         print("  0) Salir")
         choice = input("\n👉 Selecciona una opción [1]: ").strip() or "1"
 
@@ -752,6 +987,10 @@ def interactive_menu():
         elif choice == "4":
             configure_dian_mode_interactive()
         elif choice == "5":
+            with_db_server(clone_real_to_test, assume_yes=False)
+        elif choice == "6":
+            with_db_server(reset_test_db, assume_yes=False)
+        elif choice == "7":
             print("\n  a) Portabilizar AMBOS (Linux + Windows — ideal para memoria USB híbrida)")
             print("  b) Portabilizar solo Linux (PostgreSQL 17.2 + Python 3.12)")
             print("  c) Portabilizar solo Windows (PostgreSQL 17.2 + Python 3.12)")
@@ -767,11 +1006,11 @@ def interactive_menu():
                 setup_linux_python()
                 setup_windows_postgres()
                 setup_windows_python()
-        elif choice == "6":
-            export_universal_backup()
-        elif choice == "7":
-            import_universal_backup()
         elif choice == "8":
+            export_universal_backup()
+        elif choice == "9":
+            import_universal_backup()
+        elif choice == "10":
             cfg = load_config()
             p_in = input(f"Puerto Web HTTP [{cfg['server'].get('http_port', 8000)}]: ").strip()
             if p_in.isdigit():
@@ -791,12 +1030,16 @@ def main():
     parser.add_argument("--target", choices=["linux", "windows", "all", "auto"], help="Portabilizar motores (linux, windows, all)")
     parser.add_argument("--force", action="store_true", help="Forzar re-descarga de motores")
     parser.add_argument("--ensure-db", action="store_true", help="Asegurar que la base de datos activa exista")
+    parser.add_argument("--clone-to-test", action="store_true", help="Clonar BD real sobre la BD de pruebas")
+    parser.add_argument("--reset-test-db", action="store_true", help="Reiniciar (vaciar) la BD de pruebas")
+    parser.add_argument("--yes", "-y", action="store_true", help="Confirmar automáticamente sin preguntar")
     parser.add_argument("--set-db", choices=["embedded", "external"], help="Configurar modo de base de datos por CLI")
     parser.add_argument("--host", help="Host de PostgreSQL externo")
     parser.add_argument("--port", type=int, help="Puerto de PostgreSQL")
     parser.add_argument("--user", help="Usuario de PostgreSQL")
     parser.add_argument("--password", help="Contraseña de PostgreSQL")
-    parser.add_argument("--dbname", help="Nombre de la base de datos")
+    parser.add_argument("--dbname", help="Nombre de la base de datos real")
+    parser.add_argument("--test-dbname", help="Nombre personalizado de la base de datos de pruebas")
     parser.add_argument("--sslmode", default="", help="Modo SSL para PostgreSQL externo")
     parser.add_argument("--set-dian", choices=["mock", "real"], help="Configurar entorno global: mock (pruebas locales) o real (servidor DIAN)")
     parser.add_argument("--dian-ambiente", choices=["1", "2"], help="Ambiente DIAN en modo real: 1 (Habilitación) o 2 (Producción)")
@@ -807,6 +1050,14 @@ def main():
     parser.add_argument("--export-backup", action="store_true", help="Exportar respaldo universal en Data/backups/")
     parser.add_argument("--import-backup", action="store_true", help="Importar respaldo universal desde Data/backups/")
     args = parser.parse_args()
+
+    if args.clone_to_test:
+        with_db_server(clone_real_to_test, assume_yes=args.yes)
+        return
+
+    if args.reset_test_db:
+        with_db_server(reset_test_db, assume_yes=args.yes)
+        return
 
     if args.set_dian:
         cfg = load_config()
@@ -830,37 +1081,27 @@ def main():
         if args.dian_password is not None:
             dian_cfg["password"] = args.dian_password
         save_config(cfg)
-        print(f"✅ Entorno global actualizado en Data/config.json -> mode='{dian_cfg['mode']}'")
+        act_db = test_dbname(cfg) if dian_cfg["mode"] == "mock" else real_dbname(cfg)
+        print(f"✅ Entorno global actualizado en Data/config.json -> mode='{dian_cfg['mode']}', BD activa='{act_db}'")
         return
 
     if args.set_db:
         cfg = load_config()
-        if args.set_db == "embedded":
-            cfg["database"].update({
-                "engine": "embedded_postgresql",
-                "host": "127.0.0.1",
-                "port": args.port or 54329,
-                "user": args.user or "sap",
-                "password": "",
-                "dbname": args.dbname or "sap_colombia",
-                "sslmode": "",
-                "dsn": "",
-            })
-            save_config(cfg)
-            print(f"✅ Base de datos configurada en modo PORTABLE EMBEBIDA (puerto {cfg['database']['port']}).")
-        else:
-            cfg["database"].update({
-                "engine": "external_postgresql",
-                "host": args.host or "localhost",
-                "port": args.port or 5432,
-                "user": args.user or "postgres",
-                "password": args.password or "",
-                "dbname": args.dbname or "sap_colombia",
-                "sslmode": args.sslmode or "",
-                "dsn": "",
-            })
-            save_config(cfg)
-            print(f"✅ Base de datos configurada en modo POSTGRESQL EXTERNO ({cfg['database']['host']}:{cfg['database']['port']}/{cfg['database']['dbname']}).")
+        upd = {
+            "engine": "embedded_postgresql" if args.set_db == "embedded" else "external_postgresql",
+            "host": args.host or ("127.0.0.1" if args.set_db == "embedded" else "localhost"),
+            "port": args.port or (54329 if args.set_db == "embedded" else 5432),
+            "user": args.user or ("sap" if args.set_db == "embedded" else "postgres"),
+            "password": args.password or "",
+            "dbname": args.dbname or "sap_colombia",
+            "sslmode": args.sslmode or "",
+            "dsn": "",
+        }
+        if args.test_dbname is not None:
+            upd["test_dbname"] = args.test_dbname
+        cfg["database"].update(upd)
+        save_config(cfg)
+        print(f"✅ Base de datos configurada en modo {args.set_db.upper()} (puerto {cfg['database']['port']}, real='{cfg['database']['dbname']}', pruebas='{test_dbname(cfg)}').")
         return
 
     if args.ensure_db:

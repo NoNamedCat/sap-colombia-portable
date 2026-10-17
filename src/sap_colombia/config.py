@@ -60,15 +60,28 @@ def pg_dsn() -> str:
     env_dsn = _get_env("SAP_PG_DSN")
     if env_dsn:
         return env_dsn
-    cfg = _load_portable_config().get("database", {})
+    full_cfg = _load_portable_config()
+    cfg = full_cfg.get("database", {})
     custom_dsn = (cfg.get("dsn") or "").strip()
-    if custom_dsn:
+    if custom_dsn and dian_mode() == "real":
         return custom_dsn
     host = _get_env("SAP_DB_HOST") or cfg.get("host") or "127.0.0.1"
     port = _get_env("SAP_DB_PORT") or cfg.get("port") or 54329
     user = _get_env("SAP_DB_USER") or cfg.get("user") or "sap"
     password = _get_env("SAP_DB_PASSWORD") if os.environ.get("SAP_DB_PASSWORD") is not None else (cfg.get("password") or "")
-    dbname = _get_env("SAP_DB_NAME") or cfg.get("dbname") or "sap_colombia"
+    
+    # Si estamos en modo pruebas (mock), usar la base de datos de pruebas si no se especificó SAP_DB_NAME
+    env_dbname = _get_env("SAP_DB_NAME")
+    if env_dbname:
+        dbname = env_dbname
+    else:
+        real_name = cfg.get("dbname") or "sap_colombia"
+        if dian_mode() != "real":
+            test_name = (cfg.get("test_dbname") or "").strip()
+            dbname = test_name or f"{real_name}_pruebas"
+        else:
+            dbname = real_name
+
     sslmode = _get_env("SAP_DB_SSLMODE") or cfg.get("sslmode") or ""
 
     auth_part = quote_plus(str(user))

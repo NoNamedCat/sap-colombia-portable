@@ -1267,12 +1267,12 @@
       </table>
 
       <h3 style="margin:22px 0 10px 0; color:#0f172a;">🎛️ 2. Opciones Paso a Paso del Menú Interactivo</h3>
-      <p>Al abrir <code>./Portabilizar_Todo.sh</code> (Linux) o <code>Portabilizar_Windows.bat</code> (Windows), verás el estado actual del sistema y <strong>8 opciones numeradas</strong>:</p>
+      <p>Al abrir <code>./Portabilizar_Todo.sh</code> (Linux) o <code>Portabilizar_Windows.bat</code> (Windows), verás el estado actual del sistema y <strong>10 opciones numeradas</strong>:</p>
 
       <ul class="step-list">
         <li class="step-item">
           <span class="step-num">1</span>
-          <div class="step-text"><strong>🚀 Iniciar el ERP Corporativo Ahora:</strong> Arranca automáticamente el motor PostgreSQL embebido (si estás en modo Portable), verifica las tablas y abre la interfaz web en <code>http://127.0.0.1:8000</code>. Al cerrar la ventana con <code>Ctrl+C</code>, apaga PostgreSQL de forma segura.</div>
+          <div class="step-text"><strong>🚀 Iniciar el ERP Corporativo Ahora:</strong> Arranca automáticamente el motor PostgreSQL embebido (si estás en modo Portable), verifica las tablas de la base de datos activa y abre la interfaz web en <code>http://127.0.0.1:8000</code>. Al cerrar la ventana con <code>Ctrl+C</code>, apaga PostgreSQL de forma segura.</div>
         </li>
         <li class="step-item">
           <span class="step-num">2</span>
@@ -1284,24 +1284,32 @@
         </li>
         <li class="step-item">
           <span class="step-num">4</span>
-          <div class="step-text"><strong>🏛️ Cambiar Entorno Global (🧪 Pruebas Mockup vs. 🚀 Trabajo Real DIAN):</strong> Separa por completo las pruebas del trabajo real en toda la plataforma:
-            <br>• <strong>🧪 Entorno de Pruebas (Simulador Mockup Local):</strong> Todo el sistema opera localmente validando XML UBL 2.1 y CUFE sin enviar ningún documento a internet.
-            <br>• <strong>🚀 Entorno de Trabajo Real (Servidor Oficial DIAN):</strong> Todo el sistema transmite directamente a los Web Services SOAP oficiales de la DIAN (<code>vpfe.dian.gov.co</code> en Producción o <code>vpfe-hab.dian.gov.co</code> en Habilitación).</div>
+          <div class="step-text"><strong>🏛️ Cambiar Entorno Global (🧪 Pruebas Mockup vs. 🚀 Trabajo Real DIAN):</strong> Separa por completo las pruebas del trabajo real con aislamiento total de base de datos:
+            <br>• <strong>🧪 Entorno de Pruebas (Simulador Mockup Local):</strong> Usa la base de datos de pruebas (<code>sap_colombia_pruebas</code>) y el simulador local, sin tocar internet ni alterar los registros de producción.
+            <br>• <strong>🚀 Entorno de Trabajo Real (Servidor Oficial DIAN):</strong> Conecta a la base de datos de producción (<code>sap_colombia</code>) y transmite directamente a los Web Services SOAP oficiales de la DIAN (<code>vpfe.dian.gov.co</code> o <code>vpfe-hab.dian.gov.co</code>).</div>
         </li>
         <li class="step-item">
           <span class="step-num">5</span>
-          <div class="step-text"><strong>📦 Portabilizar / Descargar Motores (Linux + Windows para USB):</strong> Descarga y empaqueta automáticamente PostgreSQL 17.2 y Python 3.12 + librerías nativas para Linux (<code>App/engine/linux</code>, <code>App/runtime/linux</code>) y Windows (<code>App/engine/windows</code>, <code>App/runtime/windows</code>).</div>
+          <div class="step-text"><strong>🔁 Migrar / Clonar BD REAL  ➜  BD de PRUEBAS (Sandbox Seguro):</strong> Copia con un solo clic el 100% de la base de datos real (empresas, clientes, productos, cuentas PUC, facturas, etc.) sobre la base de datos de pruebas. La base de datos real solo se lee, por lo que nunca se compromete tu información real.</div>
         </li>
         <li class="step-item">
           <span class="step-num">6</span>
-          <div class="step-text"><strong>💾 Exportar Respaldo Universal de Datos:</strong> Exporta todas las tablas de la base de datos activa a un archivo neutro <code>Data/backups/respaldo_universal.json</code>.</div>
+          <div class="step-text"><strong>🧹 Reiniciar BD de PRUEBAS (Limpiar datos de pruebas):</strong> Vacía la base de datos de pruebas para empezar desde cero con datos limpios de demostración cuando lo necesites.</div>
         </li>
         <li class="step-item">
           <span class="step-num">7</span>
-          <div class="step-text"><strong>📥 Importar / Restaurar Respaldo Universal:</strong> Restaura el archivo <code>Data/backups/respaldo_universal.json</code> en la base de datos activa. Es la forma ideal de pasar tus datos entre Linux, Windows o hacia un servidor PostgreSQL externo.</div>
+          <div class="step-text"><strong>📦 Portabilizar / Descargar Motores (Linux + Windows para USB):</strong> Descarga y empaqueta automáticamente PostgreSQL 17.2 y Python 3.12 + librerías nativas para Linux (<code>App/engine/linux</code>, <code>App/runtime/linux</code>) y Windows (<code>App/engine/windows</code>, <code>App/runtime/windows</code>).</div>
         </li>
         <li class="step-item">
           <span class="step-num">8</span>
+          <div class="step-text"><strong>💾 Exportar Respaldo Universal de Datos:</strong> Exporta todas las tablas de la base de datos activa a un archivo neutro <code>Data/backups/respaldo_universal.json</code>.</div>
+        </li>
+        <li class="step-item">
+          <span class="step-num">9</span>
+          <div class="step-text"><strong>📥 Importar / Restaurar Respaldo Universal:</strong> Restaura el archivo <code>Data/backups/respaldo_universal.json</code> en la base de datos activa. Es la forma ideal de pasar tus datos entre Linux, Windows o hacia un servidor PostgreSQL externo.</div>
+        </li>
+        <li class="step-item">
+          <span class="step-num">10</span>
           <div class="step-text"><strong>🔧 Cambiar Puerto Web HTTP / Acceso desde Red Local (LAN):</strong> Te permite cambiar el puerto web (por defecto <code>8000</code>) y habilitar el acceso en red local (<code>0.0.0.0</code>) para que otros computadores de la oficina entren desde su navegador.</div>
         </li>
       </ul>
@@ -1309,9 +1317,10 @@
       <div class="alert alert-info">
         <div>💡</div>
         <div><strong>Comandos Directos por Terminal (Opcional):</strong> También puedes automatizar cualquier cambio sin entrar al menú interactivo ejecutando:
+          <br>• Clonar BD Real a BD de Pruebas: <code>./Portabilizar_Todo.sh --clone-to-test -y</code>
+          <br>• Reiniciar BD de Pruebas: <code>./Portabilizar_Todo.sh --reset-test-db -y</code>
           <br>• Configurar todo el sistema para Pruebas (Simulador Local): <code>./Portabilizar_Todo.sh --set-dian mock</code>
           <br>• Configurar todo el sistema para Trabajo Real (DIAN Producción): <code>./Portabilizar_Todo.sh --set-dian real --dian-ambiente 2</code>
-          <br>• Configurar todo el sistema para Habilitación DIAN: <code>./Portabilizar_Todo.sh --set-dian real --dian-ambiente 1 --dian-test-set-id "TU-TEST-SET-ID"</code>
           <br>• Usar BD Portable Embebida: <code>./Portabilizar_Todo.sh --set-db embedded --port 54329</code>
           <br>• Usar PostgreSQL Externo: <code>./Portabilizar_Todo.sh --set-db external --host 192.168.1.50 --port 5432 --user postgres --password secret --dbname sap_colombia</code>
         </div>

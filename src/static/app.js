@@ -810,8 +810,9 @@ async function loadEmpresa() {
     const produccion = data.tipo_ambiente === "2";
     if (!real) {
       badge.className = "badge badge-warning";
-      badge.textContent = "DIAN: modo simulado (no transmite a la DIAN real)";
-      badge.title = "Modo global PRUEBAS activo. Use el script de configuración (--set-env prod) para transmitir a la DIAN real.";
+      const dbLabel = data.active_dbname ? ` · BD: ${data.active_dbname}` : "";
+      badge.textContent = `🧪 PRUEBAS (Simulador Local)${dbLabel}`;
+      badge.title = "Modo PRUEBAS activo. Usa una BD aislada. Usa ./Portabilizar_Todo.sh --clone-to-test para actualizarla.";
     } else if (produccion && !conCert) {
       badge.className = "badge badge-danger";
       badge.textContent = "DIAN: producción SIN certificado digital";
