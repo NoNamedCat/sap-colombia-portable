@@ -1353,24 +1353,11 @@
             <input type="text" id="emp-clave" class="form-control">
           </div>
           <div class="form-group">
-            <label>Servidor de Destino DIAN (Mockup vs. DIAN Real)</label>
-            <select id="emp-dian-preset" class="form-control" onchange="onChangeDianPreset(this.value)">
-              <option value="mock">🧪 Simulador Mockup Local (Pruebas sin enviar a DIAN)</option>
-              <option value="dian_hab">🏛️ Servidor DIAN Habilitación (vpfe-hab.dian.gov.co)</option>
-              <option value="dian_prod">🚀 Servidor DIAN Producción Real (vpfe.dian.gov.co)</option>
-              <option value="custom">🔗 Servidor SOAP Personalizado</option>
-            </select>
-          </div>
-          <div class="form-group">
             <label>Tipo Ambiente DIAN</label>
             <select id="emp-ambiente" class="form-control">
               <option value="1">Habilitación / Pruebas (1)</option>
               <option value="2" selected>Producción en Operación (2)</option>
             </select>
-          </div>
-          <div class="form-group">
-            <label>URL Endpoint DIAN (Vacío = Simulador Mockup)</label>
-            <input type="text" id="emp-url-dian" class="form-control" placeholder="Vacío para Mockup Local, o URL WCF DIAN">
           </div>
         </div>
 

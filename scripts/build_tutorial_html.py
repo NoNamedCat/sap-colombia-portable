@@ -1119,7 +1119,7 @@ html_content = """<!DOCTYPE html>
         </li>
         <li class="step-item">
           <span class="step-num">3</span>
-          <div class="step-text"><strong>Haz clic en "🎨 Marca / Editar" o "+ Nueva Empresa":</strong> Crea todas las empresas que necesites, personaliza su logo, colores y fuente, y elige en el selector <strong>Modo Servidor DIAN</strong> si esa empresa operará con <code>🧪 Simulador Mockup Local</code>, <code>🏛️ Servidor DIAN Habilitación</code> o <code>🚀 Servidor DIAN Producción Real</code>.</div>
+          <div class="step-text"><strong>Haz clic en "🎨 Marca / Editar" o "+ Nueva Empresa":</strong> Crea todas las empresas que necesites y personaliza el logo, colores y fuente de cada una.</div>
         </li>
       </ul>
 
@@ -1237,13 +1237,13 @@ html_content = """<!DOCTYPE html>
       </div>
     </section>
 
-    <!-- PASO 20: SCRIPT UNIFICADO DE PORTABILIDAD, BASE DE DATOS Y SERVIDOR DIAN -->
+    <!-- PASO 20: SCRIPT UNIFICADO DE PORTABILIDAD, BASE DE DATOS Y ENTORNO GLOBAL -->
     <section class="module-card" id="paso-20">
       <div class="module-header">
-        <h2>Paso 20. Cómo Usar el Script Unificado de Configuración, Portabilidad y DIAN</h2>
-        <span class="module-tag">Linux & Windows · Portable / Externo</span>
+        <h2>Paso 20. Cómo Usar el Script de Configuración, Portabilidad y Entorno Global</h2>
+        <span class="module-tag">Linux & Windows · Pruebas vs. Producción</span>
       </div>
-      <p>El proyecto incluye un <strong>Panel de Control y Portabilidad Todo-en-Uno</strong> que te permite ejecutar el sistema sin instalar nada en la computadora, alternar entre la <strong>Base de Datos Portable</strong> (guardada dentro de <code>Data/</code>) o un <strong>PostgreSQL Externo</strong>, y elegir si deseas usar el <strong>Simulador Mockup Local</strong> o el <strong>Servidor Real de la DIAN</strong>.</p>
+      <p>El proyecto incluye un <strong>Panel de Control y Portabilidad Todo-en-Uno</strong> que separa limpiamente el <strong>Entorno de Pruebas (Simulador Local)</strong> del <strong>Entorno de Trabajo Real (Servidor DIAN)</strong> a nivel global, además de permitirte alternar entre la <strong>Base de Datos Portable</strong> (guardada dentro de <code>Data/</code>) o un <strong>PostgreSQL Externo</strong>.</p>
 
       <h3 style="margin:18px 0 10px 0; color:#0f172a;">🚀 1. Cómo Abrir el Panel de Configuración o Arrancar Directamente</h3>
       <table>
@@ -1256,7 +1256,7 @@ html_content = """<!DOCTYPE html>
         </thead>
         <tbody>
           <tr>
-            <td><strong>Abrir el Menú de Configuración</strong> (Base de Datos, DIAN, Respaldos y Motores)</td>
+            <td><strong>Abrir el Menú de Configuración</strong> (Base de Datos, Entorno DIAN, Respaldos y Motores)</td>
             <td>Ejecuta <code>./Portabilizar_Todo.sh</code></td>
             <td>Doble clic en <code>Portabilizar_Windows.bat</code></td>
           </tr>
@@ -1286,10 +1286,9 @@ html_content = """<!DOCTYPE html>
         </li>
         <li class="step-item">
           <span class="step-num">4</span>
-          <div class="step-text"><strong>🏛️ Configurar Modo Servidor DIAN (Mockup Local vs. DIAN Real vs. Por Empresa):</strong> Te permite elegir entre tres políticas:
-            <br>• <strong>🔄 Automático por Empresa (Recomendado):</strong> Respeta lo que elijas en la pestaña <em>Administración → Empresas & DIAN</em> para cada empresa (así la <em>Empresa A</em> puede estar en Producción Real y la <em>Empresa B</em> en Simulador Mockup).
-            <br>• <strong>🧪 Forzar Simulador Mockup Local Globalmente:</strong> Todas las empresas emiten facturas con XML UBL 2.1 y CUFE firmados localmente pero sin enviar nada a internet (ideal para capacitación o pruebas).
-            <br>• <strong>🏛️ / 🚀 Forzar Servidor DIAN Real (Habilitación o Producción):</strong> Conecta todas las emisiones con los Web Services SOAP oficiales de la DIAN (<code>vpfe-hab.dian.gov.co</code> o <code>vpfe.dian.gov.co</code>).</div>
+          <div class="step-text"><strong>🏛️ Cambiar Entorno Global (🧪 Pruebas Mockup vs. 🚀 Trabajo Real DIAN):</strong> Separa por completo las pruebas del trabajo real en toda la plataforma:
+            <br>• <strong>🧪 Entorno de Pruebas (Simulador Mockup Local):</strong> Todo el sistema opera localmente validando XML UBL 2.1 y CUFE sin enviar ningún documento a internet.
+            <br>• <strong>🚀 Entorno de Trabajo Real (Servidor Oficial DIAN):</strong> Todo el sistema transmite directamente a los Web Services SOAP oficiales de la DIAN (<code>vpfe.dian.gov.co</code> en Producción o <code>vpfe-hab.dian.gov.co</code> en Habilitación).</div>
         </li>
         <li class="step-item">
           <span class="step-num">5</span>
@@ -1312,10 +1311,9 @@ html_content = """<!DOCTYPE html>
       <div class="alert alert-info">
         <div>💡</div>
         <div><strong>Comandos Directos por Terminal (Opcional):</strong> También puedes automatizar cualquier cambio sin entrar al menú interactivo ejecutando:
-          <br>• Modo DIAN por empresa (híbrido): <code>./Portabilizar_Todo.sh --set-dian auto</code>
-          <br>• Forzar Simulador Mockup global: <code>./Portabilizar_Todo.sh --set-dian mock</code>
-          <br>• Forzar DIAN Habilitación: <code>./Portabilizar_Todo.sh --set-dian dian_hab --dian-test-set-id "TU-TEST-SET-ID"</code>
-          <br>• Forzar DIAN Producción: <code>./Portabilizar_Todo.sh --set-dian dian_prod</code>
+          <br>• Configurar todo el sistema para Pruebas (Simulador Local): <code>./Portabilizar_Todo.sh --set-dian mock</code>
+          <br>• Configurar todo el sistema para Trabajo Real (DIAN Producción): <code>./Portabilizar_Todo.sh --set-dian real --dian-ambiente 2</code>
+          <br>• Configurar todo el sistema para Habilitación DIAN: <code>./Portabilizar_Todo.sh --set-dian real --dian-ambiente 1 --dian-test-set-id "TU-TEST-SET-ID"</code>
           <br>• Usar BD Portable Embebida: <code>./Portabilizar_Todo.sh --set-db embedded --port 54329</code>
           <br>• Usar PostgreSQL Externo: <code>./Portabilizar_Todo.sh --set-db external --host 192.168.1.50 --port 5432 --user postgres --password secret --dbname sap_colombia</code>
         </div>

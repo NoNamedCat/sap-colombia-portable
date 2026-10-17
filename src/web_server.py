@@ -763,8 +763,9 @@ class SapWebHandler(BaseHTTPRequestHandler):
 
         # Rutas API
         if path == "/api/empresa":
-            empresa = db.get_empresa()
-            return self._send_json(empresa or {})
+            empresa = dict(db.get_empresa() or {})
+            empresa["dian_mode"] = config.dian_mode()
+            return self._send_json(empresa)
 
         if path == "/api/clientes":
             clientes = db.get_clientes()

@@ -805,13 +805,13 @@ async function loadEmpresa() {
     // de operación. Ahora refleja el modo real (mock vs. DIAN real) y si hay
     // certificado configurado, que es lo que exige la DIAN en producción.
     const badge = document.getElementById("dian-status-badge");
-    const real = data.url_dian && data.url_dian.trim() !== "";
+    const real = data.dian_mode === "real";
     const conCert = !!(data.ruta_certificado && data.ruta_certificado.trim() !== "");
     const produccion = data.tipo_ambiente === "2";
     if (!real) {
       badge.className = "badge badge-warning";
       badge.textContent = "DIAN: modo simulado (no transmite a la DIAN real)";
-      badge.title = "Configure empresas.url_dian y SAP_DIAN_MODE=real para transmite a la DIAN.";
+      badge.title = "Modo global PRUEBAS activo. Use el script de configuración (--set-env prod) para transmitir a la DIAN real.";
     } else if (produccion && !conCert) {
       badge.className = "badge badge-danger";
       badge.textContent = "DIAN: producción SIN certificado digital";
@@ -2332,36 +2332,6 @@ function populateRolesSelect(roles) {
 }
 
 // --- Empresa CRUD ---
-function onChangeDianPreset(preset) {
-  const form = document.getElementById('form-empresa');
-  if (!form) return;
-  const ambSel = form.querySelector('#emp-ambiente');
-  const urlInp = form.querySelector('#emp-url-dian');
-  if (!urlInp) return;
-
-  if (preset === 'mock') {
-    urlInp.value = '';
-    urlInp.readOnly = true;
-    urlInp.style.opacity = '0.75';
-  } else if (preset === 'dian_hab') {
-    if (ambSel) ambSel.value = '2';
-    urlInp.value = 'https://vpfe-hab.dian.gov.co/WcfDianCustomerServices.svc';
-    urlInp.readOnly = false;
-    urlInp.style.opacity = '1';
-  } else if (preset === 'dian_prod') {
-    if (ambSel) ambSel.value = '1';
-    urlInp.value = 'https://vpfe.dian.gov.co/WcfDianCustomerServices.svc';
-    urlInp.readOnly = false;
-    urlInp.style.opacity = '1';
-  } else {
-    urlInp.readOnly = false;
-    urlInp.style.opacity = '1';
-    if (!urlInp.value || urlInp.value.toLowerCase().includes('mock')) {
-      urlInp.value = 'https://vpfe-hab.dian.gov.co/WcfDianCustomerServices.svc';
-    }
-  }
-}
-
 function showEmpresaForm(empresa = null) {
   initBrandingStudioBindings();
   const card = document.getElementById('card-empresa-form');
@@ -2369,7 +2339,6 @@ function showEmpresaForm(empresa = null) {
   const form = document.getElementById('form-empresa');
   if (card && form) {
     card.style.display = 'block';
-    const presetSel = form.querySelector('#emp-dian-preset');
     if (empresa) {
       title.textContent = 'Editar Empresa #' + empresa.id + ' — ' + (empresa.razon_social || '');
       form.querySelector('#emp-id').value = empresa.id;
@@ -2384,27 +2353,6 @@ function showEmpresaForm(empresa = null) {
       form.querySelector('#emp-fecha-resolucion').value = empresa.fecha_resolucion || '';
       form.querySelector('#emp-clave').value = empresa.clave_tecnica || '';
       form.querySelector('#emp-ambiente').value = empresa.tipo_ambiente || '2';
-      const urlVal = (empresa.url_dian || '').trim();
-      form.querySelector('#emp-url-dian').value = urlVal;
-      if (presetSel) {
-        if (!urlVal || urlVal.toLowerCase().includes('mock') || urlVal.toLowerCase().includes('simulador')) {
-          presetSel.value = 'mock';
-          form.querySelector('#emp-url-dian').readOnly = true;
-          form.querySelector('#emp-url-dian').style.opacity = '0.75';
-        } else if (urlVal.includes('vpfe-hab.dian.gov.co')) {
-          presetSel.value = 'dian_hab';
-          form.querySelector('#emp-url-dian').readOnly = false;
-          form.querySelector('#emp-url-dian').style.opacity = '1';
-        } else if (urlVal.includes('vpfe.dian.gov.co')) {
-          presetSel.value = 'dian_prod';
-          form.querySelector('#emp-url-dian').readOnly = false;
-          form.querySelector('#emp-url-dian').style.opacity = '1';
-        } else {
-          presetSel.value = 'custom';
-          form.querySelector('#emp-url-dian').readOnly = false;
-          form.querySelector('#emp-url-dian').style.opacity = '1';
-        }
-      }
       // Branding fields
       const marca = empresa.nombre_marca || 'ERP';
       const logoData = empresa.logo_data || '';
@@ -2433,10 +2381,6 @@ function showEmpresaForm(empresa = null) {
       title.textContent = 'Nueva Empresa';
       form.reset();
       form.querySelector('#emp-id').value = '';
-      if (presetSel) {
-        presetSel.value = 'mock';
-        onChangeDianPreset('mock');
-      }
       if (form.querySelector('#emp-nombre-marca')) form.querySelector('#emp-nombre-marca').value = 'ERP';
       if (form.querySelector('#emp-logo-data')) form.querySelector('#emp-logo-data').value = '';
       if (form.querySelector('#emp-fuente-data')) form.querySelector('#emp-fuente-data').value = '';
@@ -2466,7 +2410,6 @@ async function saveEmpresa(e) {
     fecha_resolucion: form.querySelector('#emp-fecha-resolucion').value,
     clave_tecnica: form.querySelector('#emp-clave').value,
     tipo_ambiente: form.querySelector('#emp-ambiente').value,
-    url_dian: form.querySelector('#emp-url-dian').value,
     nombre_marca: form.querySelector('#emp-nombre-marca')?.value || 'ERP',
     logo_data: form.querySelector('#emp-logo-data')?.value || '',
     color_primario: form.querySelector('#emp-color-primario')?.value || '#0070f2',

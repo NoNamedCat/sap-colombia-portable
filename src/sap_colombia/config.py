@@ -104,12 +104,12 @@ def _get_env(key: str, default: str = "") -> str:
 
 
 def dian_mode() -> str:
-    """Modo de operación DIAN: ``mock``, ``real``, ``mock_soap`` o ``auto``."""
+    """Modo global de operación DIAN: ``mock`` (pruebas locales) o ``real`` (DIAN oficial)."""
     env_mode = _get_env("SAP_DIAN_MODE").lower()
-    if env_mode in (DIAN_MODE_MOCK, DIAN_MODE_REAL, "mock_soap", "auto"):
+    if env_mode in (DIAN_MODE_MOCK, DIAN_MODE_REAL, "mock_soap"):
         return env_mode
     cfg_mode = str(_load_portable_config().get("dian", {}).get("mode", "")).strip().lower()
-    if cfg_mode in (DIAN_MODE_MOCK, DIAN_MODE_REAL, "mock_soap", "auto"):
+    if cfg_mode in (DIAN_MODE_MOCK, DIAN_MODE_REAL, "mock_soap"):
         return cfg_mode
     return _DIAN_MODE_DEFAULT
 

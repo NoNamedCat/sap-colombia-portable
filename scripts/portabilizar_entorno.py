@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ================================================================================
- GESTOR UNIFICADO DE PORTABILIDAD, BASE DE DATOS, DIAN Y ARRANQUE - ERP COLOMBIA
+ GESTOR UNIFICADO DE PORTABILIDAD, BASE DE DATOS Y ENTORNO - ERP COLOMBIA
 ================================================================================
 Unifica en una sola herramienta multiplataforma (Linux y Windows):
   1. Descarga y portabilización automática de PostgreSQL 17.2 y Python 3.12 + librerías
@@ -9,10 +9,11 @@ Unifica en una sola herramienta multiplataforma (Linux y Windows):
   2. Gestión de Base de Datos:
      - Modo A: Base de Datos Portable Embebida (guardada en Data/db o Data/db_windows).
      - Modo B: PostgreSQL Externo (Servidor en red local, Docker, AWS RDS, Supabase, etc.).
-  3. Gestión Híbrida de Facturación Electrónica DIAN:
-     - Automático por Empresa (cada empresa elige Mockup, Habilitación o Producción en la Web UI).
-     - Forzar Simulador Mockup Local globalmente (ideal para pruebas/capacitación sin riesgo).
-     - Forzar Servidor DIAN Real globalmente (Habilitación o Producción).
+  3. Separación Global de Entorno (Pruebas vs. Trabajo Real DIAN):
+     - Entorno de Pruebas (mock): Usa el Simulador Local sin transmitir a internet y permite
+       aislar los datos en una base de datos de pruebas.
+     - Entorno de Trabajo Real (real): Conecta globalmente con los Web Services SOAP oficiales
+       de la DIAN (Producción o Set de Habilitación).
   4. Exportación e Importación de Respaldo Universal (Data/backups/respaldo_universal.json)
      para migrar datos entre Linux, Windows o un servidor PostgreSQL externo.
   5. Lanzador unificado del ERP (arranca motor si es embebido, verifica BD y lanza Web UI).
@@ -23,9 +24,8 @@ Uso por línea de comandos:
   python3 App/scripts/portabilizar_entorno.py --target all
   python3 App/scripts/portabilizar_entorno.py --set-db embedded --port 54329
   python3 App/scripts/portabilizar_entorno.py --set-db external --host 192.168.1.50 --port 5432 --user postgres --password secret --dbname sap_colombia
-  python3 App/scripts/portabilizar_entorno.py --set-dian auto
   python3 App/scripts/portabilizar_entorno.py --set-dian mock
-  python3 App/scripts/portabilizar_entorno.py --set-dian real --dian-ambiente 2 --dian-test-set-id "tu-test-set-id"
+  python3 App/scripts/portabilizar_entorno.py --set-dian real --dian-ambiente 2
   python3 App/scripts/portabilizar_entorno.py --export-backup
   python3 App/scripts/portabilizar_entorno.py --import-backup
 """
@@ -98,7 +98,7 @@ def load_config() -> dict:
             "dsn": "",
         },
         "dian": {
-            "mode": "auto",
+            "mode": "mock",
             "ambiente": "2",
             "test_set_id": "",
             "user": "",
@@ -519,24 +519,22 @@ def start_erp_system():
     ensure_database_exists(db_cfg)
     dsn = build_dsn_from_cfg(db_cfg)
     dian_cfg = cfg.get("dian", {})
-    dian_mode_val = dian_cfg.get("mode", "auto")
-    if dian_mode_val == "mock":
-        dian_desc = "🧪 FORZADO SIMULADOR MOCKUP LOCAL (Pruebas seguras)"
-    elif dian_mode_val == "real":
-        amb_label = "Producción" if str(dian_cfg.get("ambiente")) == "1" else "Habilitación"
-        dian_desc = f"🏛️  FORZADO SERVIDOR DIAN REAL ({amb_label})"
+    dian_mode_val = "real" if dian_cfg.get("mode") == "real" else "mock"
+    if dian_mode_val == "real":
+        amb_label = "Producción Oficial" if str(dian_cfg.get("ambiente")) == "2" else "Habilitación DIAN"
+        dian_desc = f"🚀 TRABAJO REAL — SERVIDOR DIAN ({amb_label})"
     else:
-        dian_desc = "🔄 AUTOMÁTICO POR EMPRESA (Según perfil de cada empresa en Web UI)"
+        dian_desc = "🧪 ENTORNO DE PRUEBAS — SIMULADOR LOCAL (Sin envío a DIAN)"
 
     print("==================================================================")
     print(" 🚀 ERP CORPORATIVO COLOMBIA - SISTEMA EN EJECUCIÓN")
     print("==================================================================")
     print(f"📂 Directorio Base : {BASE_DIR}")
     if engine_mode == "embedded_postgresql":
-        print(f"🗄️  Base de Datos   : PORTABLE EMBEBIDA ({db_dir} - Puerto {db_cfg.get('port')})")
+        print(f"🗄️  Base de Datos   : PORTABLE EMBEBIDA ({db_dir} - Puerto {db_cfg.get('port')} - BD: {db_cfg.get('dbname')})")
     else:
         print(f"🗄️  Base de Datos   : POSTGRESQL EXTERNO ({db_cfg.get('host')}:{db_cfg.get('port')}/{db_cfg.get('dbname')})")
-    print(f"🏛️  Servidor DIAN   : {dian_desc}")
+    print(f"🏛️  Entorno Global  : {dian_desc}")
     print(f"🐍 Python Runtime  : {py_bin}")
     print(f"🌐 Interfaz Web    : http://127.0.0.1:{http_port}")
     print(f"📖 Tutorial Visual : http://127.0.0.1:{http_port}/tutorial/index.html")
@@ -601,14 +599,12 @@ def print_status_banner():
     srv_cfg = cfg["server"]
     dian_cfg = cfg.get("dian", {})
     engine = db_cfg.get("engine", "embedded_postgresql")
-    dian_mode = dian_cfg.get("mode", "auto")
-    if dian_mode == "mock":
-        dian_label = "🧪 FORZADO SIMULADOR MOCKUP LOCAL (Pruebas seguras)"
-    elif dian_mode == "real":
-        amb_txt = "Producción (1)" if str(dian_cfg.get("ambiente")) == "1" else "Habilitación (2)"
-        dian_label = f"🏛️  FORZADO SERVIDOR DIAN REAL — {amb_txt}"
+    dian_mode = "real" if dian_cfg.get("mode") == "real" else "mock"
+    if dian_mode == "real":
+        amb_txt = "Producción Oficial (2)" if str(dian_cfg.get("ambiente")) == "2" else "Habilitación DIAN (1)"
+        dian_label = f"🚀 TRABAJO REAL — SERVIDOR DIAN ({amb_txt})"
     else:
-        dian_label = "🔄 AUTOMÁTICO POR EMPRESA (Según perfil en Web UI)"
+        dian_label = "🧪 ENTORNO DE PRUEBAS — SIMULADOR LOCAL (Sin envío a DIAN)"
 
     linux_pg_ok = os.path.isfile(os.path.join(APP_DIR, "engine", "linux", "bin", "postgres"))
     linux_py_ok = os.path.isfile(os.path.join(APP_DIR, "runtime", "linux", "bin", "python3"))
@@ -619,10 +615,10 @@ def print_status_banner():
     print(" 🎛️  PANEL DE CONTROL Y PORTABILIDAD — ERP CORPORATIVO COLOMBIA")
     print("======================================================================")
     if engine == "embedded_postgresql":
-        print(f" 🗄️  Modo Base de Datos : PORTABLE EMBEBIDA en Data/ (Puerto {db_cfg.get('port', 54329)})")
+        print(f" 🗄️  Modo Base de Datos : PORTABLE EMBEBIDA en Data/ (Puerto {db_cfg.get('port', 54329)} · BD: {db_cfg.get('dbname', 'sap_colombia')})")
     else:
         print(f" 🗄️  Modo Base de Datos : POSTGRESQL EXTERNO ({db_cfg.get('user')}@{db_cfg.get('host')}:{db_cfg.get('port')}/{db_cfg.get('dbname')})")
-    print(f" 🏛️  Facturación DIAN   : {dian_label}")
+    print(f" 🏛️  Entorno Global     : {dian_label}")
     print(f" 🌐 Servidor Web HTTP  : http://{srv_cfg.get('host', '127.0.0.1')}:{srv_cfg.get('http_port', 8000)}")
     print(f" 🐧 Motor Portable Linux   : PostgreSQL [{'✅ LISTO' if linux_pg_ok else '⚠️ PENDIENTE'}] | Python [{'✅ LISTO' if linux_py_ok else '⚠️ PENDIENTE'}]")
     print(f" 🪟 Motor Portable Windows : PostgreSQL [{'✅ LISTO' if win_pg_ok else '⚠️ PENDIENTE'}] | Python [{'✅ LISTO' if win_py_ok else '⚠️ PENDIENTE'}]")
@@ -691,29 +687,21 @@ def configure_dian_mode_interactive():
     cfg = load_config()
     dian_cfg = cfg.setdefault("dian", {})
     print("\n======================================================================")
-    print(" 🏛️  CONFIGURACIÓN HÍBRIDA DE FACTURACIÓN ELECTRÓNICA DIAN")
+    print(" 🏛️  SEPARACIÓN GLOBAL DE ENTORNO: PRUEBAS vs. TRABAJO REAL DIAN")
     print("======================================================================")
-    print("  1) 🔄 AUTOMÁTICO POR EMPRESA (Recomendado)")
-    print("     Cada empresa registrada usa su propia configuración en la UI Web:")
-    print("     - Empresa A puede estar en Producción DIAN Real")
-    print("     - Empresa B puede estar en Simulador Mockup Local o Habilitación")
-    print("  2) 🧪 FORZAR SIMULADOR MOCKUP LOCAL GLOBALMENTE")
-    print("     Todas las empresas emiten facturas simuladas localmente con CUFE/XML")
-    print("     válidos sin transmitir nada a internet (ideal para pruebas/demos).")
-    print("  3) 🏛️  FORZAR SERVIDOR DIAN HABILITACIÓN (Pruebas Set de Pruebas DIAN)")
-    print("     Conecta con https://vpfe-hab.dian.gov.co/WcfDianCustomerServices.svc")
-    print("  4) 🚀 FORZAR SERVIDOR DIAN PRODUCCIÓN REAL")
-    print("     Conecta con https://vpfe.dian.gov.co/WcfDianCustomerServices.svc")
-    choice = input("\n👉 Selecciona el modo de operación DIAN [1]: ").strip() or "1"
+    print("  1) 🧪 ENTORNO DE PRUEBAS (Simulador Mockup Local)")
+    print("     Todo el sistema opera en modo de pruebas locales sin transmitir")
+    print("     documentos a internet.")
+    print("  2) 🚀 ENTORNO DE TRABAJO REAL (Servidor Oficial DIAN)")
+    print("     Todo el sistema se conecta directamente con los Web Services SOAP")
+    print("     de la DIAN (Producción Oficial o Set de Habilitación).")
+    choice = input("\n👉 Selecciona el entorno global del sistema [1]: ").strip() or "1"
 
     if choice == "2":
-        dian_cfg["mode"] = "mock"
-        save_config(cfg)
-        print("✅ Modo DIAN configurado en: 🧪 FORZADO SIMULADOR MOCKUP LOCAL.")
-    elif choice in ("3", "4"):
-        is_prod = choice == "4"
         dian_cfg["mode"] = "real"
-        dian_cfg["ambiente"] = "1" if is_prod else "2"
+        amb_in = input("Ambiente DIAN (1 = Habilitación Set de Pruebas, 2 = Producción Oficial) [2]: ").strip() or "2"
+        is_prod = amb_in == "2"
+        dian_cfg["ambiente"] = "2" if is_prod else "1"
         default_url = (
             "https://vpfe.dian.gov.co/WcfDianCustomerServices.svc"
             if is_prod
@@ -725,18 +713,19 @@ def configure_dian_mode_interactive():
             ts_in = input(f"TestSetId de Habilitación DIAN [{dian_cfg.get('test_set_id', '')}]: ").strip()
             if ts_in:
                 dian_cfg["test_set_id"] = ts_in
-        usr_in = input(f"Usuario WS DIAN / NIT Software (opcional) [{dian_cfg.get('user', '')}]: ").strip()
+        usr_in = input(f"Usuario WS DIAN / NIT Software [{dian_cfg.get('user', '')}]: ").strip()
         if usr_in:
             dian_cfg["user"] = usr_in
         pwd_in = getpass.getpass("Clave Técnica / Password Software WS DIAN (Enter para mantener actual): ").strip()
         if pwd_in:
             dian_cfg["password"] = pwd_in
         save_config(cfg)
-        print(f"✅ Modo DIAN configurado en: {'🚀 PRODUCCIÓN REAL' if is_prod else '🏛️ HABILITACIÓN DIAN'}.")
+        print(f"✅ Sistema configurado globalmente en: 🚀 TRABAJO REAL DIAN ({'Producción' if is_prod else 'Habilitación'}).")
     else:
-        dian_cfg["mode"] = "auto"
+        dian_cfg["mode"] = "mock"
+        dian_cfg["transmit_url"] = ""
         save_config(cfg)
-        print("✅ Modo DIAN configurado en: 🔄 AUTOMÁTICO POR EMPRESA (se respeta el selector de cada empresa en la Web UI).")
+        print("✅ Sistema configurado globalmente en: 🧪 ENTORNO DE PRUEBAS (Simulador Mockup Local).")
 
 
 def interactive_menu():
@@ -745,7 +734,7 @@ def interactive_menu():
         print("  1) 🚀 Iniciar el ERP Corporativo Ahora")
         print("  2) 🏠 Cambiar a Base de Datos PORTABLE Embebida (guardada en Data/)")
         print("  3) 🌐 Cambiar a Servidor PostgreSQL EXTERNO (Red Local / Nube / Docker)")
-        print("  4) 🏛️  Configurar Modo Servidor DIAN (Mockup Local vs. DIAN Real vs. Por Empresa)")
+        print("  4) 🏛️  Cambiar Entorno Global (🧪 Pruebas Mockup vs. 🚀 Trabajo Real DIAN)")
         print("  5) 📦 Portabilizar / Descargar Motores (Linux + Windows para USB)")
         print("  6) 💾 Exportar Respaldo Universal de Datos (Data/backups/respaldo_universal.json)")
         print("  7) 📥 Importar / Restaurar Respaldo Universal en la Base de Datos Activa")
@@ -796,7 +785,7 @@ def interactive_menu():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Gestor Unificado de Portabilidad, Base de Datos y DIAN ERP Colombia")
+    parser = argparse.ArgumentParser(description="Gestor Unificado de Portabilidad, Base de Datos y Entorno ERP Colombia")
     parser.add_argument("--menu", action="store_true", help="Abrir menú interactivo de configuración y arranque")
     parser.add_argument("--start", action="store_true", help="Iniciar el ERP directamente con la configuración actual")
     parser.add_argument("--target", choices=["linux", "windows", "all", "auto"], help="Portabilizar motores (linux, windows, all)")
@@ -809,8 +798,8 @@ def main():
     parser.add_argument("--password", help="Contraseña de PostgreSQL")
     parser.add_argument("--dbname", help="Nombre de la base de datos")
     parser.add_argument("--sslmode", default="", help="Modo SSL para PostgreSQL externo")
-    parser.add_argument("--set-dian", choices=["auto", "mock", "real", "dian_hab", "dian_prod"], help="Configurar modo de servidor DIAN (auto, mock, real, dian_hab, dian_prod)")
-    parser.add_argument("--dian-ambiente", choices=["1", "2"], help="Ambiente DIAN: 1 (Producción) o 2 (Habilitación)")
+    parser.add_argument("--set-dian", choices=["mock", "real"], help="Configurar entorno global: mock (pruebas locales) o real (servidor DIAN)")
+    parser.add_argument("--dian-ambiente", choices=["1", "2"], help="Ambiente DIAN en modo real: 1 (Habilitación) o 2 (Producción)")
     parser.add_argument("--dian-test-set-id", help="TestSetId para el set de pruebas de habilitación DIAN")
     parser.add_argument("--dian-user", help="Usuario WS DIAN")
     parser.add_argument("--dian-password", help="Contraseña WS DIAN")
@@ -824,22 +813,16 @@ def main():
         dian_cfg = cfg.setdefault("dian", {})
         if args.set_dian == "mock":
             dian_cfg["mode"] = "mock"
-        elif args.set_dian == "auto":
-            dian_cfg["mode"] = "auto"
-        elif args.set_dian == "dian_hab":
-            dian_cfg["mode"] = "real"
-            dian_cfg["ambiente"] = "2"
-            dian_cfg["transmit_url"] = args.dian_url or "https://vpfe-hab.dian.gov.co/WcfDianCustomerServices.svc"
-        elif args.set_dian == "dian_prod":
-            dian_cfg["mode"] = "real"
-            dian_cfg["ambiente"] = "1"
-            dian_cfg["transmit_url"] = args.dian_url or "https://vpfe.dian.gov.co/WcfDianCustomerServices.svc"
+            dian_cfg["transmit_url"] = ""
         else:
             dian_cfg["mode"] = "real"
-            if args.dian_ambiente:
-                dian_cfg["ambiente"] = args.dian_ambiente
-            if args.dian_url:
-                dian_cfg["transmit_url"] = args.dian_url
+            amb = args.dian_ambiente or dian_cfg.get("ambiente") or "2"
+            dian_cfg["ambiente"] = amb
+            dian_cfg["transmit_url"] = args.dian_url or (
+                "https://vpfe.dian.gov.co/WcfDianCustomerServices.svc"
+                if amb == "2"
+                else "https://vpfe-hab.dian.gov.co/WcfDianCustomerServices.svc"
+            )
         if args.dian_test_set_id is not None:
             dian_cfg["test_set_id"] = args.dian_test_set_id
         if args.dian_user is not None:
@@ -847,7 +830,7 @@ def main():
         if args.dian_password is not None:
             dian_cfg["password"] = args.dian_password
         save_config(cfg)
-        print(f"✅ Modo DIAN actualizado en Data/config.json -> mode='{dian_cfg['mode']}'")
+        print(f"✅ Entorno global actualizado en Data/config.json -> mode='{dian_cfg['mode']}'")
         return
 
     if args.set_db:
